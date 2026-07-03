@@ -63,7 +63,8 @@ class App:
 
         from modules.grid.grid import GridModule
         from modules.overlay.overlay import OverlayModule
-
+        from modules.wave.module import WaveModule
+        
         #
         # Permanent modules
         #
@@ -74,6 +75,10 @@ class App:
 
         self.manager.register(
             OverlayModule()
+        )
+        
+        self.manager.register(
+            WaveModule()
         )
 
         #
