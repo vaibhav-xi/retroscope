@@ -1,14 +1,16 @@
 """
-RetroScope Rendering Engine
+RetroScope v0.2
+Renderer
 """
 
 import pygame
 
 import config
 import grid
-import crt
 
 from waveform import Waveform
+from beam import BeamRenderer
+from crt import CRT
 from input import InputManager
 
 
@@ -32,55 +34,32 @@ class Renderer:
         self.running = True
 
         #
-        # Layers
-        #
-
-        self.grid_surface = pygame.Surface(
-            (config.WIDTH, config.HEIGHT)
-        ).convert()
-
-        self.trace_surface = pygame.Surface(
-            (config.WIDTH, config.HEIGHT),
-            pygame.SRCALPHA,
-        ).convert_alpha()
-
-        self.glow_surface = pygame.Surface(
-            (config.WIDTH, config.HEIGHT),
-            pygame.SRCALPHA,
-        ).convert_alpha()
-
-        self.effect_surface = pygame.Surface(
-            (config.WIDTH, config.HEIGHT),
-            pygame.SRCALPHA,
-        ).convert_alpha()
-
-        #
         # Static grid
         #
 
-        self.grid_surface.fill(config.BACKGROUND)
+        self.grid = pygame.Surface(
+            (config.WIDTH, config.HEIGHT)
+        ).convert()
+
+        self.grid.fill(config.BACKGROUND)
 
         grid.draw(
-            self.grid_surface,
+            self.grid,
             config.WIDTH,
             config.HEIGHT,
         )
 
         #
-        # Waveform
+        # Engine
         #
 
         self.wave = Waveform()
 
-        #
-        # Input
-        #
+        self.beam = BeamRenderer()
+
+        self.crt = CRT()
 
         self.input = InputManager()
-
-        #
-        # Font
-        #
 
         self.font = pygame.font.SysFont(
             "Courier New",
@@ -90,7 +69,7 @@ class Renderer:
 
     # ----------------------------------------------------
 
-    def handle_events(self):
+    def events(self):
 
         for event in pygame.event.get():
 
@@ -110,118 +89,7 @@ class Renderer:
 
     # ----------------------------------------------------
 
-    def update(self):
-
-        if not config.runtime["freeze"]:
-
-            self.wave.update()
-
-    # ----------------------------------------------------
-
-    def draw(self):
-
-        #
-        # ALWAYS CLEAR TRACE
-        #
-        # Persistence will be implemented later using
-        # a proper phosphor buffer.
-        #
-
-        self.trace_surface.fill((0, 0, 0, 0))
-
-        #
-        # Draw waveform
-        #
-
-        self.wave.draw(
-            self.trace_surface,
-            config.WIDTH,
-            config.HEIGHT,
-        )
-
-        #
-        # Glow
-        #
-
-        self.glow_surface.fill((0, 0, 0, 0))
-
-        if config.runtime["glow"]:
-
-            crt.draw_glow(
-                self.trace_surface,
-                self.glow_surface,
-            )
-
-        #
-        # Begin frame
-        #
-
-        self.screen.blit(
-            self.grid_surface,
-            (0, 0),
-        )
-
-        #
-        # Glow first
-        #
-
-        self.screen.blit(
-            self.glow_surface,
-            (0, 0),
-            special_flags=pygame.BLEND_ADD,
-        )
-
-        #
-        # Main trace
-        #
-
-        self.screen.blit(
-            self.trace_surface,
-            (0, 0),
-        )
-
-        #
-        # Overlay effects
-        #
-
-        self.effect_surface.fill((0, 0, 0, 0))
-
-        if config.runtime["scanlines"]:
-
-            crt.draw_scanlines(
-                self.effect_surface
-            )
-
-        if config.runtime["noise"]:
-
-            crt.draw_noise(
-                self.effect_surface
-            )
-
-        if config.runtime["vignette"]:
-
-            crt.draw_vignette(
-                self.effect_surface
-            )
-
-        self.screen.blit(
-            self.effect_surface,
-            (0, 0),
-        )
-
-        #
-        # UI
-        #
-
-        self.draw_overlay()
-
-        pygame.display.flip()
-
-        self.clock.tick(config.FPS)
-
-    # ----------------------------------------------------
-
-    def draw_overlay(self):
+    def overlay(self):
 
         left = (
             f"{config.CHANNEL}   "
@@ -234,27 +102,80 @@ class Renderer:
             f"{config.VOLT_DIV}"
         )
 
-        text_left = self.font.render(
+        t1 = self.font.render(
             left,
             True,
             config.TEXT,
         )
 
-        text_right = self.font.render(
+        t2 = self.font.render(
             right,
             True,
             config.TEXT,
         )
 
         self.screen.blit(
-            text_left,
-            (15, 12),
+            t1,
+            (15, 10),
         )
 
         self.screen.blit(
-            text_right,
-            (430, 12),
+            t2,
+            (430, 10),
         )
+
+    # ----------------------------------------------------
+
+    def draw(self):
+
+        #
+        # Update waveform
+        #
+
+        if not config.runtime["freeze"]:
+
+            self.wave.update()
+
+        #
+        # Fresh beam
+        #
+
+        beam_surface = self.beam.draw(
+            self.wave.samples
+        )
+
+        #
+        # CRT
+        #
+
+        self.crt.update(
+            beam_surface
+        )
+
+        #
+        # Begin frame
+        #
+
+        self.screen.blit(
+            self.grid,
+            (0, 0),
+        )
+
+        #
+        # CRT rendering
+        #
+
+        self.crt.render(
+            self.screen
+        )
+
+        #
+        # Overlay
+        #
+
+        self.overlay()
+
+        pygame.display.flip()
 
     # ----------------------------------------------------
 
@@ -262,10 +183,12 @@ class Renderer:
 
         while self.running:
 
-            self.handle_events()
-
-            self.update()
+            self.events()
 
             self.draw()
+
+            self.clock.tick(
+                config.FPS
+            )
 
         pygame.quit()

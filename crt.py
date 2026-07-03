@@ -1,5 +1,6 @@
 """
-CRT Effects Engine
+RetroScope v0.2
+CRT Rendering Engine
 """
 
 import random
@@ -8,172 +9,234 @@ import pygame
 import config
 
 
-# --------------------------------------------------------
-# Glow
-# --------------------------------------------------------
+class CRT:
 
-def draw_glow(trace_surface, glow_surface):
-    """
-    Fast glow using multi-scale additive blending.
-    Much faster than a Gaussian blur on the Pi.
-    """
+    def __init__(self):
 
-    # Small blur
-    small = pygame.transform.smoothscale(
-        trace_surface,
-        (
-            config.WIDTH // 2,
-            config.HEIGHT // 2,
-        ),
-    )
+        #
+        # Persistent phosphor
+        #
 
-    small = pygame.transform.smoothscale(
-        small,
-        (
-            config.WIDTH,
-            config.HEIGHT,
-        ),
-    )
+        self.phosphor = pygame.Surface(
+            (config.WIDTH, config.HEIGHT),
+            pygame.SRCALPHA,
+        ).convert_alpha()
 
-    small.set_alpha(70)
+        self.phosphor.fill((0, 0, 0, 0))
 
-    glow_surface.blit(
-        small,
-        (0, 0),
-        special_flags=pygame.BLEND_ADD,
-    )
+        #
+        # Glow buffer
+        #
 
-    # Large blur
+        self.glow = pygame.Surface(
+            (config.WIDTH, config.HEIGHT),
+            pygame.SRCALPHA,
+        ).convert_alpha()
 
-    tiny = pygame.transform.smoothscale(
-        trace_surface,
-        (
-            config.WIDTH // 4,
-            config.HEIGHT // 4,
-        ),
-    )
+        #
+        # Overlay buffer
+        #
 
-    tiny = pygame.transform.smoothscale(
-        tiny,
-        (
-            config.WIDTH,
-            config.HEIGHT,
-        ),
-    )
+        self.overlay = pygame.Surface(
+            (config.WIDTH, config.HEIGHT),
+            pygame.SRCALPHA,
+        ).convert_alpha()
 
-    tiny.set_alpha(35)
+        #
+        # Reusable fade surface
+        #
 
-    glow_surface.blit(
-        tiny,
-        (0, 0),
-        special_flags=pygame.BLEND_ADD,
-    )
-
-
-# --------------------------------------------------------
-# Scanlines
-# --------------------------------------------------------
-
-def draw_scanlines(surface):
-
-    color = (0, 0, 0)
-
-    for y in range(0, config.HEIGHT, 2):
-
-        pygame.draw.line(
-            surface,
-            color,
-            (0, y),
-            (config.WIDTH, y),
-        )
-
-    surface.set_alpha(config.SCANLINE_ALPHA)
-
-
-# --------------------------------------------------------
-# Noise
-# --------------------------------------------------------
-
-def draw_noise(surface):
-
-    for _ in range(config.NOISE_PIXELS):
-
-        x = random.randrange(config.WIDTH)
-
-        y = random.randrange(config.HEIGHT)
-
-        brightness = random.randint(10, 40)
-
-        surface.set_at(
-            (x, y),
-            (
-                0,
-                brightness,
-                0,
-                20,
-            ),
-        )
-
-
-# --------------------------------------------------------
-# Vignette
-# --------------------------------------------------------
-
-def draw_vignette(surface):
-
-    w = config.WIDTH
-    h = config.HEIGHT
-
-    steps = 14
-
-    for i in range(steps):
-
-        alpha = int(i * 5)
-
-        rect = pygame.Rect(
-            i * 8,
-            i * 5,
-            w - i * 16,
-            h - i * 10,
-        )
-
-        overlay = pygame.Surface(
-            rect.size,
+        self.fade = pygame.Surface(
+            (config.WIDTH, config.HEIGHT),
             pygame.SRCALPHA,
         )
 
-        overlay.fill((0, 0, 0, alpha))
-
-        surface.blit(
-            overlay,
-            rect.topleft,
-            special_flags=pygame.BLEND_RGBA_SUB,
+        self.fade.fill(
+            (0, 0, 0, config.PERSISTENCE_ALPHA)
         )
 
+    # -----------------------------------------------------
 
-# --------------------------------------------------------
-# Boot flash (future)
-# --------------------------------------------------------
+    def update(self, beam_surface):
 
-def boot_flash(surface, strength):
+        #
+        # Fade previous phosphor
+        #
 
-    overlay = pygame.Surface(
-        (
-            config.WIDTH,
-            config.HEIGHT,
+        if config.runtime["persistence"]:
+
+            self.phosphor.blit(
+                self.fade,
+                (0, 0),
+                special_flags=pygame.BLEND_RGBA_SUB,
+            )
+
+        else:
+
+            self.phosphor.fill((0, 0, 0, 0))
+
+        #
+        # Add fresh beam
+        #
+
+        self.phosphor.blit(
+            beam_surface,
+            (0, 0),
+            special_flags=pygame.BLEND_ADD,
         )
-    )
 
-    overlay.fill(
-        (
-            strength,
-            strength,
-            strength,
+    # -----------------------------------------------------
+
+    def render(self, screen):
+
+        #
+        # Bloom
+        #
+
+        if config.runtime["glow"]:
+
+            self.glow.fill((0, 0, 0, 0))
+
+            bloom = pygame.transform.smoothscale(
+                self.phosphor,
+                (
+                    config.WIDTH // 2,
+                    config.HEIGHT // 2,
+                ),
+            )
+
+            bloom = pygame.transform.smoothscale(
+                bloom,
+                (
+                    config.WIDTH,
+                    config.HEIGHT,
+                ),
+            )
+
+            bloom.set_alpha(
+                config.BLOOM_ALPHA
+            )
+
+            self.glow.blit(
+                bloom,
+                (0, 0),
+                special_flags=pygame.BLEND_ADD,
+            )
+
+            #
+            # Draw glow
+            #
+
+            screen.blit(
+                self.glow,
+                (0, 0),
+                special_flags=pygame.BLEND_ADD,
+            )
+
+        #
+        # Draw phosphor
+        #
+
+        screen.blit(
+            self.phosphor,
+            (0, 0),
         )
-    )
 
-    surface.blit(
-        overlay,
-        (0, 0),
-        special_flags=pygame.BLEND_ADD,
-    )
+        #
+        # Overlay
+        #
+
+        self.overlay.fill((0, 0, 0, 0))
+
+        #
+        # Scanlines
+        #
+
+        if config.runtime["scanlines"]:
+
+            for y in range(
+                0,
+                config.HEIGHT,
+                2,
+            ):
+
+                pygame.draw.line(
+                    self.overlay,
+                    (
+                        0,
+                        0,
+                        0,
+                        config.SCANLINE_ALPHA,
+                    ),
+                    (0, y),
+                    (config.WIDTH, y),
+                )
+
+        #
+        # Noise
+        #
+
+        if config.runtime["noise"]:
+
+            for _ in range(
+                config.NOISE_PIXELS
+            ):
+
+                x = random.randrange(
+                    config.WIDTH
+                )
+
+                y = random.randrange(
+                    config.HEIGHT
+                )
+
+                g = random.randint(
+                    15,
+                    50,
+                )
+
+                self.overlay.set_at(
+                    (x, y),
+                    (0, g, 0, 70),
+                )
+
+        #
+        # Vignette
+        #
+
+        if config.runtime["vignette"]:
+
+            for i in range(14):
+
+                pygame.draw.rect(
+
+                    self.overlay,
+
+                    (
+                        0,
+                        0,
+                        0,
+                        i * 6,
+                    ),
+
+                    pygame.Rect(
+
+                        i * 6,
+                        i * 6,
+
+                        config.WIDTH - i * 12,
+                        config.HEIGHT - i * 12,
+
+                    ),
+
+                    2,
+                )
+
+        #
+        # Draw overlay
+        #
+
+        screen.blit(
+            self.overlay,
+            (0, 0),
+        )

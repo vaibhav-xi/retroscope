@@ -1,9 +1,12 @@
 """
-Waveform Generator
+RetroScope v0.2
+Wave Engine
 """
 
 import math
 import random
+from collections import deque
+
 import pygame
 
 import config
@@ -13,120 +16,98 @@ class Waveform:
 
     def __init__(self):
 
-        self.phase = 0.0
+        #
+        # Rolling sample buffer
+        #
 
-    # -----------------------------------------------------
+        self.samples = deque(
+            [0.0] * config.WIDTH,
+            maxlen=config.WIDTH,
+        )
 
-    def update(self):
+        self.time = 0.0
 
-        self.phase += config.runtime["speed"]
+    # ----------------------------------------------------
 
-    # -----------------------------------------------------
-
-    def sample(self, t):
+    def signal(self, t):
 
         wave = config.runtime["waveform"]
 
-        #
-        # Sine
-        #
+        freq = config.runtime["frequency"]
 
         if wave == "sine":
 
             return math.sin(
-                t * math.pi * 2 * config.runtime["frequency"]
-                + self.phase
+                t * math.pi * 2 * freq
             )
-
-        #
-        # Square
-        #
 
         elif wave == "square":
 
-            s = math.sin(
-                t * math.pi * 2 * config.runtime["frequency"]
-                + self.phase
+            return (
+                1
+                if math.sin(
+                    t * math.pi * 2 * freq
+                ) >= 0
+                else -1
             )
-
-            return 1 if s >= 0 else -1
-
-        #
-        # Triangle
-        #
 
         elif wave == "triangle":
 
-            x = (
-                t * config.runtime["frequency"]
-                + self.phase
-            )
-
-            x = x % 1.0
+            x = (t * freq) % 1.0
 
             return 4 * abs(x - 0.5) - 1
 
-        #
-        # Sawtooth
-        #
-
         elif wave == "saw":
 
-            x = (
-                t * config.runtime["frequency"]
-                + self.phase
-            )
-
-            x = x % 1.0
+            x = (t * freq) % 1.0
 
             return (x * 2) - 1
-
-        #
-        # Noise
-        #
 
         elif wave == "noise":
 
             return random.uniform(-1, 1)
 
-        #
-        # Flat line
-        #
-
         return 0
 
-    # -----------------------------------------------------
+    # ----------------------------------------------------
 
-    def draw(
-        self,
-        surface,
-        width,
-        height,
-    ):
+    def update(self):
+
+        #
+        # Time advances continuously
+        #
+
+        self.time += config.runtime["speed"] * 0.01
+
+        value = self.signal(self.time)
+
+        self.samples.append(value)
+
+    # ----------------------------------------------------
+
+    def draw(self, surface, width, height):
+
+        centre = height // 2
+
+        amplitude = (
+            config.runtime["amplitude"]
+            * height
+            * 0.40
+        )
 
         points = []
 
-        center = height // 2
+        for x, sample in enumerate(self.samples):
 
-        amplitude = (
-            height
-            * config.runtime["amplitude"]
-        )
-
-        for x in range(width):
-
-            t = x / width
-
-            y = self.sample(t)
-
-            py = center + y * amplitude
-
-            points.append(
-                (x, int(py))
+            y = int(
+                centre
+                - sample * amplitude
             )
 
+            points.append((x, y))
+
         #
-        # Thick glow beam
+        # Outer glow
         #
 
         pygame.draw.lines(
@@ -134,7 +115,7 @@ class Waveform:
             config.TRACE_GLOW,
             False,
             points,
-            config.GLOW_WIDTH,
+            config.GLOW_WIDTH + 4,
         )
 
         #
@@ -150,7 +131,7 @@ class Waveform:
         )
 
         #
-        # Bright phosphor core
+        # Bright phosphor
         #
 
         pygame.draw.aalines(
