@@ -1,0 +1,167 @@
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+}
+
+body{
+
+    background:#0b0b0b;
+    color:#00ff66;
+
+    font-family:
+        "Consolas",
+        "Courier New",
+        monospace;
+
+    display:flex;
+    justify-content:center;
+
+    padding:40px;
+}
+
+.panel{
+
+    width:420px;
+
+    background:#111;
+
+    border:2px solid #00aa44;
+
+    border-radius:8px;
+
+    padding:25px;
+
+    box-shadow:
+        0 0 20px rgba(0,255,100,.15);
+
+}
+
+h1{
+
+    text-align:center;
+
+    color:#44ff88;
+
+    margin-bottom:25px;
+
+    letter-spacing:2px;
+
+}
+
+h2{
+
+    margin-top:22px;
+    margin-bottom:10px;
+
+    color:#33dd77;
+
+    font-size:18px;
+
+    border-bottom:1px solid #225533;
+
+    padding-bottom:5px;
+
+}
+
+#waveforms{
+
+    display:flex;
+    flex-direction:column;
+
+    gap:8px;
+
+}
+
+label{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    margin-bottom:8px;
+
+    cursor:pointer;
+
+}
+
+input[type="range"]{
+
+    width:100%;
+
+    margin-top:10px;
+    margin-bottom:6px;
+
+}
+
+input[type="checkbox"]{
+
+    transform:scale(1.2);
+
+}
+
+input[type="radio"]{
+
+    transform:scale(1.15);
+
+}
+
+span{
+
+    display:block;
+
+    color:#88ffbb;
+
+    margin-bottom:12px;
+
+    font-size:15px;
+
+}
+
+button{
+
+    width:100%;
+
+    margin-top:25px;
+
+    padding:12px;
+
+    border:none;
+
+    border-radius:5px;
+
+    background:#00aa44;
+
+    color:white;
+
+    font-size:17px;
+
+    cursor:pointer;
+
+    transition:.2s;
+
+}
+
+button:hover{
+
+    background:#00cc55;
+
+}
+
+button:active{
+
+    transform:scale(.98);
+
+}
+
+hr{
+
+    border:none;
+
+    border-top:1px solid #225533;
+
+    margin:20px 0;
+
+}

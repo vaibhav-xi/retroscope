@@ -4,11 +4,21 @@ Flask Control Server
 """
 
 from threading import Thread
-from flask import Flask, request, jsonify
+#from flask import Flask, request, jsonify
+from flask import (
+    Flask,
+    jsonify,
+    request,
+    render_template,
+)
 
 import config
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder="web/templates",
+    static_folder="web/static",
+)
 
 
 # --------------------------------------------------------
@@ -91,54 +101,7 @@ def api_reset():
 @app.get("/")
 def home():
 
-    return """
-<html>
-
-<head>
-
-<title>RetroScope</title>
-
-<style>
-
-body{
-
-background:#101010;
-
-color:#00ff66;
-
-font-family:monospace;
-
-padding:40px;
-
-}
-
-button{
-
-font-size:20px;
-
-margin:8px;
-
-padding:12px;
-
-}
-
-</style>
-
-</head>
-
-<body>
-
-<h1>RetroScope</h1>
-
-<p>Renderer connected.</p>
-
-<p>Web interface coming soon.</p>
-
-</body>
-
-</html>
-"""
-
+    return render_template("index.html")
 
 # --------------------------------------------------------
 # Thread

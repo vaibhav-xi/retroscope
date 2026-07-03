@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="utf-8">
+
+<title>RetroScope</title>
+
+<link rel="stylesheet"
+href="/static/style.css">
+
+</head>
+
+<body>
+
+<div class="panel">
+
+<h1>RetroScope</h1>
+
+<h2>Waveform</h2>
+
+<div id="waveforms">
+
+<label><input type="radio" name="wave" value="sine">Sine</label>
+<label><input type="radio" name="wave" value="square">Square</label>
+<label><input type="radio" name="wave" value="triangle">Triangle</label>
+<label><input type="radio" name="wave" value="saw">Saw</label>
+<label><input type="radio" name="wave" value="noise">Noise</label>
+
+</div>
+
+<h2>Frequency</h2>
+
+<input
+id="frequency"
+type="range"
+min="0.25"
+max="10"
+step="0.25">
+
+<span id="freqValue"></span>
+
+<h2>Amplitude</h2>
+
+<input
+id="amplitude"
+type="range"
+min="0.05"
+max="1"
+step="0.05">
+
+<span id="ampValue"></span>
+
+<h2>Effects</h2>
+
+<label><input id="glow" type="checkbox">Glow</label>
+<label><input id="grid" type="checkbox">Grid</label>
+<label><input id="scanlines" type="checkbox">Scanlines</label>
+<label><input id="noise" type="checkbox">Noise</label>
+<label><input id="persistence" type="checkbox">Persistence</label>
+
+<br><br>
+
+<button id="reset">
+Reset
+</button>
+
+</div>
+
+<script src="/static/app.js"></script>
+
+</body>
+
+</html>
