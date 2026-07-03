@@ -25,6 +25,7 @@ from core.manager import Manager
 from render.renderer import Renderer
 
 from modules.demo.demo import DemoModule
+from render.display import Display
 
 class App:
 
@@ -47,6 +48,12 @@ class App:
         #
 
         self.frame = Frame()
+        
+        #
+        # Display
+        #
+
+        self.display = Display()
 
         #
         # Renderer
@@ -126,21 +133,25 @@ class App:
         # Begin frame
         #
 
-        self.renderer.begin_frame()
+        self.display.begin_frame()
 
         #
         # Render
         #
 
         self.renderer.render(
-            self.frame
+
+            self.frame,
+
+            self.display.screen,
+
         )
 
         #
         # Present
         #
 
-        fps = self.renderer.end_frame()
+        fps = self.display.end_frame()
 
         self.context.set_fps(fps)
 
@@ -150,7 +161,7 @@ class App:
 
         self.manager.shutdown()
 
-        self.renderer.shutdown()
+        self.display.shutdown()
 
     # ---------------------------------------------------------
 

@@ -5,8 +5,18 @@ Renderer
 
 Converts a Frame into pixels.
 
-The renderer knows only about render primitives.
-It never knows what simulation produced them.
+The renderer owns:
+
+- Beam surface
+- Primitive rasterization
+- CRT pipeline
+
+It does NOT own:
+
+- pygame initialization
+- Window
+- Clock
+- Display swapping
 """
 
 from __future__ import annotations
@@ -14,8 +24,6 @@ from __future__ import annotations
 import pygame
 
 import config
-
-from core.frame import Frame
 
 from render.primitives import (
     Point,
@@ -25,44 +33,70 @@ from render.primitives import (
     Text,
 )
 
+from render.crt.pipeline import CRTPipeline
+
 
 class Renderer:
 
-    def __init__(self) -> None:
-
-        pygame.init()
-
-        flags = 0
-
-        if config.FULLSCREEN:
-            flags |= pygame.FULLSCREEN
-
-        self.screen = pygame.display.set_mode(
-            (config.WIDTH, config.HEIGHT),
-            flags,
-        )
-
-        pygame.display.set_caption(
-            config.WINDOW_TITLE
-        )
-
-        self.clock = pygame.time.Clock()
+    def __init__(self):
 
         #
-        # Default font
+        # Off-screen beam surface.
+        #
+
+        self.beam = pygame.Surface(
+
+            (
+                config.WIDTH,
+                config.HEIGHT,
+            ),
+
+            pygame.SRCALPHA,
+
+        )
+
+        #
+        # CRT pipeline.
+        #
+
+        self.crt = CRTPipeline()
+
+        #
+        # Font cache.
         #
 
         self.font_cache = {}
 
     # ---------------------------------------------------------
 
-    def begin_frame(self) -> None:
+    def _font(self, size):
 
-        self.screen.fill((0, 0, 0))
+        if size not in self.font_cache:
+
+            self.font_cache[size] = pygame.font.SysFont(
+                "Courier New",
+                size,
+            )
+
+        return self.font_cache[size]
 
     # ---------------------------------------------------------
 
-    def render(self, frame: Frame) -> None:
+    def render(
+        self,
+        frame,
+        screen,
+    ):
+
+        #
+        # Clear beam.
+        #
+
+        self.beam.fill((0, 0, 0, 0))
+
+        #
+        # Draw primitives.
+        #
 
         for primitive in frame:
 
@@ -73,13 +107,18 @@ class Renderer:
             if isinstance(primitive, Point):
 
                 pygame.draw.circle(
-                    self.screen,
+
+                    self.beam,
+
                     primitive.color,
+
                     (
                         int(primitive.position[0]),
                         int(primitive.position[1]),
                     ),
+
                     primitive.size,
+
                 )
 
             #
@@ -91,11 +130,17 @@ class Renderer:
                 if len(primitive.points) >= 2:
 
                     pygame.draw.lines(
-                        self.screen,
+
+                        self.beam,
+
                         primitive.color,
+
                         False,
+
                         primitive.points,
+
                         primitive.width,
+
                     )
 
             #
@@ -105,14 +150,20 @@ class Renderer:
             elif isinstance(primitive, Circle):
 
                 pygame.draw.circle(
-                    self.screen,
+
+                    self.beam,
+
                     primitive.color,
+
                     (
                         int(primitive.center[0]),
                         int(primitive.center[1]),
                     ),
+
                     int(primitive.radius),
+
                     primitive.width,
+
                 )
 
             #
@@ -122,27 +173,41 @@ class Renderer:
             elif isinstance(primitive, Rectangle):
 
                 rect = pygame.Rect(
+
                     primitive.x,
+
                     primitive.y,
+
                     primitive.width,
+
                     primitive.height,
+
                 )
 
                 if primitive.filled:
 
                     pygame.draw.rect(
-                        self.screen,
+
+                        self.beam,
+
                         primitive.color,
+
                         rect,
+
                     )
 
                 else:
 
                     pygame.draw.rect(
-                        self.screen,
+
+                        self.beam,
+
                         primitive.color,
+
                         rect,
+
                         1,
+
                     )
 
             #
@@ -151,40 +216,44 @@ class Renderer:
 
             elif isinstance(primitive, Text):
 
-                size = primitive.size
+                font = self._font(
+                    primitive.size
+                )
 
-                if size not in self.font_cache:
+                image = font.render(
 
-                    self.font_cache[size] = pygame.font.SysFont(
-                        "Courier New",
-                        size,
-                    )
-
-                font = self.font_cache[size]
-
-                surface = font.render(
                     primitive.text,
+
                     True,
+
                     primitive.color,
+
                 )
 
-                self.screen.blit(
-                    surface,
+                self.beam.blit(
+
+                    image,
+
                     primitive.position,
+
                 )
 
-    # ---------------------------------------------------------
+        #
+        # CRT pipeline.
+        #
 
-    def end_frame(self) -> float:
+        self.crt.process(
+            self.beam
+        )
 
-        pygame.display.flip()
+        #
+        # Present to screen.
+        #
 
-        self.clock.tick(config.FPS)
+        screen.blit(
 
-        return self.clock.get_fps()
+            self.beam,
 
-    # ---------------------------------------------------------
+            (0, 0),
 
-    def shutdown(self) -> None:
-
-        pygame.quit()
+        )
