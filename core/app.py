@@ -3,22 +3,18 @@ RetroScope
 
 Application
 
-Owns the entire engine lifecycle.
+Owns the engine lifecycle.
 
-The App coordinates:
+Pipeline
 
-    Context
-    Module Manager
-    Frame
-
-The App NEVER contains simulation logic.
-
-The App NEVER performs rendering.
-
-Rendering begins in Phase 1.
+Context
+    ↓
+Manager
+    ↓
+Frame
+    ↓
+Renderer
 """
-
-from time import sleep
 
 import config
 
@@ -26,11 +22,11 @@ from core.context import Context
 from core.frame import Frame
 from core.manager import Manager
 
+from render.renderer import Renderer
+
+from modules.demo.demo import DemoModule
 
 class App:
-    """
-    RetroScope Engine
-    """
 
     def __init__(self):
 
@@ -47,116 +43,129 @@ class App:
         self.manager = Manager()
 
         #
-        # Current render frame
+        # Render frame
         #
 
         self.frame = Frame()
 
-    # ---------------------------------------------------------
+        #
+        # Renderer
+        #
 
-    def initialize(self) -> None:
-        """
-        Initialize the engine.
-        """
-
-        self.manager.initialize(self.context)
+        self.renderer = Renderer()
 
     # ---------------------------------------------------------
 
-    def update(self) -> None:
-        """
-        Update one engine tick.
-        """
+    def initialize(self):
+
+        self.manager.register(
+            DemoModule()
+        )
+
+        self.manager.initialize(
+            self.context
+        )
+
+    # ---------------------------------------------------------
+
+    def update(self):
 
         #
-        # Update timing
+        # Timing
         #
 
         self.context.update()
 
         #
-        # Update modules
+        # Simulations
         #
 
-        self.manager.update(self.context)
+        self.manager.update(
+            self.context
+        )
 
         #
-        # Build next frame
+        # Build render frame
         #
 
         self.frame.clear()
 
-        self.manager.emit(self.frame)
+        self.manager.emit(
+            self.frame
+        )
 
     # ---------------------------------------------------------
 
-    def shutdown(self) -> None:
-        """
-        Shutdown the engine.
-        """
+    def draw(self):
+
+        #
+        # Begin frame
+        #
+
+        self.renderer.begin_frame()
+
+        #
+        # Render
+        #
+
+        self.renderer.render(
+            self.frame
+        )
+
+        #
+        # Present
+        #
+
+        fps = self.renderer.end_frame()
+
+        self.context.set_fps(fps)
+
+    # ---------------------------------------------------------
+
+    def shutdown(self):
 
         self.manager.shutdown()
 
+        self.renderer.shutdown()
+
     # ---------------------------------------------------------
 
-    def run(self) -> None:
-        """
-        Main engine loop.
-        """
-
-        print()
-
-        print("=====================================")
-        print(" RetroScope Engine")
-        print("=====================================")
+    def run(self):
 
         self.initialize()
 
-        print("Engine initialized.")
-        print("Running...")
-        print()
+        running = True
 
-        try:
+        while running:
 
             #
-            # Phase 0
-            #
-            # No renderer exists yet.
-            # No window exists yet.
-            #
-            # We simply prove the engine loop.
+            # Handle window events
             #
 
-            while self.context.running:
+            import pygame
 
-                self.update()
+            for event in pygame.event.get():
 
-                #
-                # Temporary frame limiter.
-                #
-                # Replaced with pygame.Clock()
-                # in Phase 1.
-                #
+                if event.type == pygame.QUIT:
 
-                sleep(1 / config.FPS)
+                    running = False
 
-                #
-                # Display FPS estimate
-                #
+                elif event.type == pygame.KEYDOWN:
 
-                if self.context.delta_time > 0:
+                    if event.key == pygame.K_ESCAPE:
 
-                    fps = 1.0 / self.context.delta_time
+                        running = False
 
-                    self.context.set_fps(fps)
+            #
+            # Engine
+            #
 
-        except KeyboardInterrupt:
+            self.update()
 
-            print()
-            print("Stopping engine...")
+            #
+            # Renderer
+            #
 
-        finally:
+            self.draw()
 
-            self.shutdown()
-
-            print("Shutdown complete.")
+        self.shutdown()
