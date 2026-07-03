@@ -3,13 +3,8 @@ RetroScope
 
 Wave Module
 
-Converts a signal into render primitives.
-
-The module knows nothing about pygame.
-
-The module knows nothing about CRT.
-
-It only converts samples into a Polyline.
+Consumes a signal from the Signal Registry and converts it
+into a renderable Polyline.
 """
 
 from __future__ import annotations
@@ -17,6 +12,7 @@ from __future__ import annotations
 import config
 
 from core.module import Module
+from core.signal import Signal
 
 from render.primitives import Polyline
 
@@ -28,6 +24,10 @@ class WaveModule(Module):
     def __init__(self):
 
         super().__init__("Wave")
+
+        #
+        # Local signal generator
+        #
 
         self.generator = SignalGenerator()
 
@@ -45,18 +45,36 @@ class WaveModule(Module):
 
     def initialize(self, context):
 
-        pass
+        #
+        # Register the engine's primary signal.
+        #
+
+        context.signals.register(
+
+            Signal(
+
+                "main",
+
+                self.generator.sample,
+
+            )
+
+        )
 
     # ---------------------------------------------------------
 
     def update(self, context):
 
         #
-        # Advance signal phase.
+        # Animate phase.
         #
 
         self.generator.phase += (
-            self.speed * context.delta_time * 2.0
+
+            self.speed
+            * context.delta_time
+            * 2.0
+
         )
 
     # ---------------------------------------------------------
@@ -67,29 +85,30 @@ class WaveModule(Module):
 
         points = []
 
-        center_y = config.HEIGHT / 2
+        center = config.HEIGHT / 2
 
         scale = config.HEIGHT * self.amplitude
 
         #
-        # Sample the signal
+        # Sample the signal registry.
         #
 
         for x in range(self.samples):
 
             t = x / self.samples
 
-            value = self.generator.sample(t)
-
-            y = center_y - value * scale
-
-            points.append(
-                (x, y)
+            value = context.signals.sample(
+                "main",
+                t,
             )
 
-        #
-        # Emit waveform
-        #
+            y = center - value * scale
+
+            points.append(
+
+                (x, y)
+
+            )
 
         frame.add(
 

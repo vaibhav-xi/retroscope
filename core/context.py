@@ -12,6 +12,10 @@ import time
 
 from themes.oscilloscope import OscilloscopeTheme
 
+from core.signal import SignalRegistry
+from core.parameters import ParameterRegistry
+from core.settings import Settings
+
 
 @dataclass
 class Context:
@@ -19,41 +23,53 @@ class Context:
     Shared engine runtime state.
     """
 
-    #
+    # ---------------------------------------------------------
     # Engine
-    #
+    # ---------------------------------------------------------
 
     running: bool = True
     paused: bool = False
 
-    #
+    # ---------------------------------------------------------
     # Timing
-    #
+    # ---------------------------------------------------------
 
     frame: int = 0
     delta_time: float = 0.0
     elapsed_time: float = 0.0
     fps: float = 0.0
 
-    #
-    # Active Theme
-    #
+    # ---------------------------------------------------------
+    # Theme
+    # ---------------------------------------------------------
 
     theme: OscilloscopeTheme = field(
         default_factory=OscilloscopeTheme
     )
 
-    #
+    # ---------------------------------------------------------
+    # Engine Services
+    # ---------------------------------------------------------
+
+    signals: SignalRegistry = field(
+        default_factory=SignalRegistry
+    )
+
+    parameters: ParameterRegistry = field(
+        default_factory=ParameterRegistry
+    )
+
+    # ---------------------------------------------------------
     # Random Generator
-    #
+    # ---------------------------------------------------------
 
     random: pyrandom.Random = field(
         default_factory=pyrandom.Random
     )
 
-    #
-    # Internal Timer
-    #
+    # ---------------------------------------------------------
+    # Internal
+    # ---------------------------------------------------------
 
     _last_time: float = field(
         default_factory=time.perf_counter,
@@ -62,8 +78,22 @@ class Context:
     )
 
     # ---------------------------------------------------------
+    # Post Initialization
+    # ---------------------------------------------------------
 
-    def update(self) -> None:
+    def __post_init__(self):
+
+        #
+        # Typed settings interface.
+        #
+
+        self.settings = Settings(
+            self.parameters
+        )
+
+    # ---------------------------------------------------------
+
+    def update(self):
 
         now = time.perf_counter()
 
@@ -77,6 +107,9 @@ class Context:
 
     # ---------------------------------------------------------
 
-    def set_fps(self, fps: float) -> None:
+    def set_fps(
+        self,
+        fps: float,
+    ):
 
         self.fps = fps
