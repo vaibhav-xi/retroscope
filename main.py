@@ -1,46 +1,28 @@
-import pygame
+"""
+RetroScope
+Main Entry
+"""
 
-import grid
-from waveform import Waveform
+from renderer import Renderer
+from network import start as start_web
 
-WIDTH = 800
-HEIGHT = 480
 
-BACKGROUND = (2, 5, 2)
+def main():
 
-pygame.init()
+    #
+    # Start Flask server
+    #
 
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("RetroScope")
+    start_web()
 
-clock = pygame.time.Clock()
+    #
+    # Start renderer
+    #
 
-wave = Waveform()
+    renderer = Renderer()
 
-running = True
+    renderer.run()
 
-while running:
 
-    for event in pygame.event.get():
-
-        if event.type == pygame.QUIT:
-            running = False
-
-        if event.type == pygame.KEYDOWN:
-
-            if event.key == pygame.K_ESCAPE:
-                running = False
-
-    wave.update()
-
-    screen.fill(BACKGROUND)
-
-    grid.draw(screen, WIDTH, HEIGHT)
-
-    wave.draw(screen, WIDTH, HEIGHT)
-
-    pygame.display.flip()
-
-    clock.tick(60)
-
-pygame.quit()
+if __name__ == "__main__":
+    main()
