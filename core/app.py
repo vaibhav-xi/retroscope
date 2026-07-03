@@ -62,13 +62,18 @@ class App:
         """
 
         from modules.grid.grid import GridModule
+        from modules.overlay.overlay import OverlayModule
 
         #
-        # Register permanent modules
+        # Permanent modules
         #
 
         self.manager.register(
             GridModule()
+        )
+
+        self.manager.register(
+            OverlayModule()
         )
 
         #
