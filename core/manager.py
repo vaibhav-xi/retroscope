@@ -82,16 +82,16 @@ class Manager:
 
     # ---------------------------------------------------------
 
-    def emit(self, frame) -> None:
+    def emit(self, context, frame) -> None:
         """
-        Ask every active module to emit render primitives.
+        Collect render primitives.
         """
 
         for module in self._modules:
 
             if module.enabled:
 
-                module.emit(frame)
+                module.emit(context, frame)
 
     # ---------------------------------------------------------
 

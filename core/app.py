@@ -57,10 +57,23 @@ class App:
     # ---------------------------------------------------------
 
     def initialize(self):
+        """
+        Initialize the engine.
+        """
+
+        from modules.grid.grid import GridModule
+
+        #
+        # Register permanent modules
+        #
 
         self.manager.register(
-            DemoModule()
+            GridModule()
         )
+
+        #
+        # Initialize all modules
+        #
 
         self.manager.initialize(
             self.context
@@ -91,7 +104,8 @@ class App:
         self.frame.clear()
 
         self.manager.emit(
-            self.frame
+            self.context,
+            self.frame,
         )
 
     # ---------------------------------------------------------
