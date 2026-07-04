@@ -4,7 +4,7 @@ from OpenGL.GL import *
 
 from render_es2.shader import Shader
 from render_es2.mesh import Mesh
-from render_es2.geometry import Geometry
+from render_es2.geometry_builder import GeometryBuilder
 
 
 class Renderer:
@@ -48,10 +48,13 @@ class Renderer:
 
         self.shader.use()
 
-        vertices = Geometry.build(frame)
+        packet = GeometryBuilder.build(frame)
 
-        if len(vertices) < 4:
-            return
+        for command in packet.commands:
 
-        self.mesh.update(vertices)
-        self.mesh.draw(self.shader)
+            if len(command.vertices) < 4:
+                continue
+
+            self.mesh.update(command.vertices)
+
+            self.mesh.draw(self.shader)

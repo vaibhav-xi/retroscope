@@ -9,9 +9,12 @@ Converts engine primitives into GPU vertex arrays.
 import config
 
 from render.primitives import Polyline
+from render_es2.render_packet import (
+    RenderPacket,
+    RenderCommand,
+)
 
-
-class Geometry:
+class GeometryBuilder:
 
     @staticmethod
     def build(frame):
@@ -35,15 +38,29 @@ class Geometry:
 
                 vertices.extend([
 
-                    Geometry._x(x1),
-                    Geometry._y(y1),
+                    GeometryBuilder._x(x1),
+                    GeometryBuilder._y(y1),
 
-                    Geometry._x(x2),
-                    Geometry._y(y2),
+                    GeometryBuilder._x(x2),
+                    GeometryBuilder._y(y2),
 
                 ])
 
-        return vertices
+        packet = RenderPacket()
+
+        packet.add(
+
+            RenderCommand(
+
+                vertices=vertices,
+
+                color=(0.0, 1.0, 0.4),
+
+            )
+
+        )
+
+        return packet
 
     # ---------------------------------------------------------
 
