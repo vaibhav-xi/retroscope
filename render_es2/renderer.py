@@ -1,12 +1,9 @@
-"""
-RetroScope
-
-ES2 Renderer
-
-Owns OpenGL state.
-"""
+from pathlib import Path
 
 from OpenGL.GL import *
+
+from render_es2.shader import Shader
+from render_es2.mesh import Mesh
 
 
 class Renderer:
@@ -14,20 +11,7 @@ class Renderer:
     def __init__(self):
 
         #
-        # Viewport
-        #
-
-        viewport = glGetIntegerv(GL_VIEWPORT)
-
-        glViewport(
-            0,
-            0,
-            viewport[2],
-            viewport[3],
-        )
-
-        #
-        # Black background
+        # Clear color
         #
 
         glClearColor(
@@ -37,7 +21,41 @@ class Renderer:
             1.0,
         )
 
-    # -------------------------------------------------
+        #
+        # Load shaders
+        #
+
+        shader_dir = (
+            Path(__file__).parent
+            / "shaders"
+        )
+
+        vertex = (
+            shader_dir / "simple.vert"
+        ).read_text()
+
+        fragment = (
+            shader_dir / "simple.frag"
+        ).read_text()
+
+        self.shader = Shader(
+            vertex,
+            fragment,
+        )
+
+        #
+        # Triangle
+        #
+
+        self.mesh = Mesh(
+            [
+                -0.6, -0.5,
+                 0.6, -0.5,
+                 0.0,  0.6,
+            ]
+        )
+
+    # ---------------------------------------------------------
 
     def begin_frame(self):
 
@@ -45,7 +63,13 @@ class Renderer:
             GL_COLOR_BUFFER_BIT
         )
 
-    # -------------------------------------------------
+        self.shader.use()
+
+        self.mesh.draw(
+            self.shader
+        )
+
+    # ---------------------------------------------------------
 
     def end_frame(self):
 
