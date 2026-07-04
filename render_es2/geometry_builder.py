@@ -15,6 +15,7 @@ from render_es2.render_packet import (
     RenderCommand,
 )
 
+from render_es2.material import Material
 
 class GeometryBuilder:
 
@@ -69,9 +70,19 @@ class GeometryBuilder:
                 continue
 
             packet.add(
+
                 RenderCommand(
+
                     vertices=vertices,
+
+                    material=Material(
+
+                        color=(0.0, 1.0, 0.4),
+
+                    ),
+
                 )
+
             )
 
         return packet
