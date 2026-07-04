@@ -35,12 +35,6 @@ class Renderer:
             vertex,
             fragment,
         )
-
-        #
-        # Create ONE mesh forever
-        #
-
-        self.mesh = Mesh()
         
     def render(self, frame):
 
@@ -55,6 +49,10 @@ class Renderer:
             if len(command.vertices) < 4:
                 continue
 
-            self.mesh.update(command.vertices)
+            command.mesh.update(
+                command.vertices
+            )
 
-            self.mesh.draw(self.shader)
+            command.mesh.draw(
+                self.shader
+            )
