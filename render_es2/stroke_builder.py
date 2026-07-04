@@ -16,10 +16,14 @@ from render.primitives import Polyline
 
 import math
 
+import time
+
 class StrokeBuilder:
 
     @staticmethod
     def build(polyline: Polyline):
+        
+        start = time.perf_counter()
 
         vertices = []
 
@@ -141,6 +145,11 @@ class StrokeBuilder:
                 StrokeBuilder._y(right2[1]),
 
             ])
+            
+        elapsed = (time.perf_counter() - start) * 1000
+
+        if elapsed > 1.0:
+            print(f"StrokeBuilder : {elapsed:.2f} ms")
 
         return vertices
 

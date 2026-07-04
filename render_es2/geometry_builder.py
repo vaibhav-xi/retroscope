@@ -19,10 +19,14 @@ from render_es2.render_packet import (
 
 from render_es2.stroke_builder import StrokeBuilder
 
+import time
+
 class GeometryBuilder:
 
     @staticmethod
     def build(frame):
+        
+        start = time.perf_counter()
 
         packet = RenderPacket()
 
@@ -108,6 +112,10 @@ class GeometryBuilder:
                     )
 
                 )
+                
+        elapsed = (time.perf_counter() - start) * 1000
+
+        print(f"GeometryBuilder: {elapsed:.2f} ms")
 
         return packet
 
