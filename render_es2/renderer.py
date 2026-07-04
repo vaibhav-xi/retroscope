@@ -49,9 +49,11 @@ class Renderer:
             if len(command.vertices) < 4:
                 continue
 
-            command.mesh.update(
-                command.vertices
-            )
+            if command.dynamic:
+
+                command.mesh.update(
+                    command.vertices
+                )
 
             command.mesh.draw(
                 self.shader

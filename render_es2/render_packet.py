@@ -13,6 +13,8 @@ class RenderCommand:
     mesh: Mesh = field(
         default_factory=Mesh
     )
+    
+    dynamic: bool = True
 
 
 @dataclass
