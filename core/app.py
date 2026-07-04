@@ -1,206 +1,41 @@
 """
 RetroScope
 
-Application
+App
 
-Owns the engine lifecycle.
+Temporary OpenGL bootstrap.
 
-Pipeline
+Purpose:
 
-Context
-    ↓
-Manager
-    ↓
-Frame
-    ↓
-Renderer
+Verify GLFW + ModernGL works before
+connecting the engine.
 """
 
-import config
+from __future__ import annotations
 
-from core.context import Context
-from core.frame import Frame
-from core.manager import Manager
+from render.window import Window
 
-from render.renderer import Renderer
-
-from modules.demo.demo import DemoModule
-from render.display import Display
 
 class App:
 
     def __init__(self):
 
-        #
-        # Shared engine state
-        #
-
-        self.context = Context()
-
-        #
-        # Module manager
-        #
-
-        self.manager = Manager()
-
-        #
-        # Render frame
-        #
-
-        self.frame = Frame()
-        
-        #
-        # Display
-        #
-
-        self.display = Display()
-
-        #
-        # Renderer
-        #
-
-        self.renderer = Renderer()
-
-    # ---------------------------------------------------------
-
-    def initialize(self):
-        """
-        Initialize the engine.
-        """
-
-        from modules.grid.grid import GridModule
-        from modules.overlay.overlay import OverlayModule
-        from modules.wave.module import WaveModule
-        
-        #
-        # Permanent modules
-        #
-
-        self.manager.register(
-            GridModule()
-        )
-
-        self.manager.register(
-            OverlayModule()
-        )
-        
-        self.manager.register(
-            WaveModule()
-        )
-
-        #
-        # Initialize all modules
-        #
-
-        self.manager.initialize(
-            self.context
-        )
-
-    # ---------------------------------------------------------
-
-    def update(self):
-
-        #
-        # Timing
-        #
-
-        self.context.update()
-
-        #
-        # Simulations
-        #
-
-        self.manager.update(
-            self.context
-        )
-
-        #
-        # Build render frame
-        #
-
-        self.frame.clear()
-
-        self.manager.emit(
-            self.context,
-            self.frame,
-        )
-
-    # ---------------------------------------------------------
-
-    def draw(self):
-
-        #
-        # Begin frame
-        #
-
-        self.display.begin_frame()
-
-        #
-        # Render
-        #
-
-        self.renderer.render(
-
-            self.frame,
-
-            self.display.screen,
-
-        )
-
-        #
-        # Present
-        #
-
-        fps = self.display.end_frame()
-
-        self.context.set_fps(fps)
-
-    # ---------------------------------------------------------
-
-    def shutdown(self):
-
-        self.manager.shutdown()
-
-        self.display.shutdown()
+        self.window = Window()
 
     # ---------------------------------------------------------
 
     def run(self):
 
-        self.initialize()
+        while not self.window.should_close():
 
-        running = True
+            self.window.poll_events()
 
-        while running:
-
-            #
-            # Handle window events
-            #
-
-            import pygame
-
-            for event in pygame.event.get():
-
-                if event.type == pygame.QUIT:
-
-                    running = False
-
-                elif event.type == pygame.KEYDOWN:
-
-                    if event.key == pygame.K_ESCAPE:
-
-                        running = False
+            self.window.begin_frame()
 
             #
-            # Engine
+            # Nothing rendered yet.
             #
 
-            self.update()
+            self.window.end_frame()
 
-            #
-            # Renderer
-            #
-
-            self.draw()
-
-        self.shutdown()
+        self.window.shutdown()
