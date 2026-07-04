@@ -4,15 +4,12 @@ from OpenGL.GL import *
 
 from render_es2.shader import Shader
 from render_es2.mesh import Mesh
+from render_es2.geometry import Geometry
 
 
 class Renderer:
 
     def __init__(self):
-
-        #
-        # Clear color
-        #
 
         glClearColor(
             0.0,
@@ -20,10 +17,6 @@ class Renderer:
             0.0,
             1.0,
         )
-
-        #
-        # Load shaders
-        #
 
         shader_dir = (
             Path(__file__).parent
@@ -43,33 +36,23 @@ class Renderer:
             fragment,
         )
 
-        #
-        # Triangle
-        #
+    # -------------------------------------------------
 
-        self.mesh = Mesh(
-            [
-                -0.8, 0.0,
-                0.8, 0.0,
-            ]
-        )
+    def render(self, frame):
 
-    # ---------------------------------------------------------
-
-    def begin_frame(self):
-
-        glClear(
-            GL_COLOR_BUFFER_BIT
-        )
+        glClear(GL_COLOR_BUFFER_BIT)
 
         self.shader.use()
 
-        self.mesh.draw(
-            self.shader
-        )
+        vertices = Geometry.build(frame)
 
-    # ---------------------------------------------------------
+        #
+        # Nothing to draw.
+        #
 
-    def end_frame(self):
+        if len(vertices) < 4:
+            return
 
-        pass
+        mesh = Mesh(vertices)
+
+        mesh.draw(self.shader)

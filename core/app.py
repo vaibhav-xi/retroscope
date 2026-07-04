@@ -22,9 +22,9 @@ class App:
 
             self.window.poll()
 
-            self.renderer.begin_frame()
+            frame = self.manager.render()
 
-            self.renderer.end_frame()
+            self.renderer.render(frame)
 
             self.window.swap()
 
