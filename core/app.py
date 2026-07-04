@@ -17,6 +17,7 @@ from core.manager import Manager
 from render_es2.window import Window
 from render_es2.renderer import Renderer
 
+import time
 
 class App:
 
@@ -112,8 +113,13 @@ class App:
     def run(self):
 
         self.initialize()
+        
+        frame_counter = 0
+        total_time = 0.0
 
         while not self.window.should_close():
+            
+            start = time.perf_counter()
 
             self.window.poll()
 
@@ -139,5 +145,24 @@ class App:
             #
 
             self.draw()
+            
+            end = time.perf_counter()
+
+            total_time += end - start
+            frame_counter += 1
+
+            if frame_counter == 120:
+
+                average = total_time / frame_counter
+
+                fps = 1.0 / average
+
+                print(
+                    f"{average * 1000:.2f} ms   "
+                    f"{fps:.1f} FPS"
+                )
+
+                frame_counter = 0
+                total_time = 0.0
 
         self.shutdown()
