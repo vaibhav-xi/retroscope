@@ -82,7 +82,7 @@ class Mesh:
 
         glDrawArrays(
 
-            GL_LINES,
+            GL_TRIANGLES,
 
             0,
 

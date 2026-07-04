@@ -102,11 +102,11 @@ class StrokeBuilder:
                 y2 - py * half_width,
             )
             
-            if i == 0:
-                print(
-                    "L1", left1,
-                    "R1", right1,
-                )
+            # if i == 0:
+            #     print(
+            #         "L1", left1,
+            #         "R1", right1,
+            #     )
 
             #
             # Still emit the original GL_LINES geometry.
@@ -114,11 +114,31 @@ class StrokeBuilder:
 
             vertices.extend([
 
-                StrokeBuilder._x(x1),
-                StrokeBuilder._y(y1),
+                #
+                # Triangle 1
+                #
 
-                StrokeBuilder._x(x2),
-                StrokeBuilder._y(y2),
+                StrokeBuilder._x(left1[0]),
+                StrokeBuilder._y(left1[1]),
+
+                StrokeBuilder._x(right1[0]),
+                StrokeBuilder._y(right1[1]),
+
+                StrokeBuilder._x(left2[0]),
+                StrokeBuilder._y(left2[1]),
+
+                #
+                # Triangle 2
+                #
+
+                StrokeBuilder._x(left2[0]),
+                StrokeBuilder._y(left2[1]),
+
+                StrokeBuilder._x(right1[0]),
+                StrokeBuilder._y(right1[1]),
+
+                StrokeBuilder._x(right2[0]),
+                StrokeBuilder._y(right2[1]),
 
             ])
 
