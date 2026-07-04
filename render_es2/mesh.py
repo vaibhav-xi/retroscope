@@ -20,7 +20,7 @@ class Mesh:
             dtype=np.float32,
         )
 
-        self.count = len(vertices) // 2
+        self.count = len(vertices) // 5
 
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
 
@@ -54,7 +54,7 @@ class Mesh:
             2,
             GL_FLOAT,
             GL_FALSE,
-            0,
+            5 * 4,
             ctypes.c_void_p(0),
         )
 
