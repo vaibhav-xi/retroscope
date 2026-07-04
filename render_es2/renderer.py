@@ -49,9 +49,8 @@ class Renderer:
 
         self.mesh = Mesh(
             [
-                -0.6, -0.5,
-                 0.6, -0.5,
-                 0.0,  0.6,
+                -0.8, 0.0,
+                0.8, 0.0,
             ]
         )
 
@@ -65,11 +64,8 @@ class Renderer:
 
         self.shader.use()
 
-        self.mesh = Mesh(
-            [
-                -0.8, 0.0,
-                0.8, 0.0,
-            ]
+        self.mesh.draw(
+            self.shader
         )
 
     # ---------------------------------------------------------
