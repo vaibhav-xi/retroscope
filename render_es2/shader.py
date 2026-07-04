@@ -32,12 +32,6 @@ class Shader:
             "a_position",
         )
 
-        glBindAttribLocation(
-            self.program,
-            1,
-            "a_color",
-        )
-
         glLinkProgram(self.program)
         
         print(
@@ -101,10 +95,7 @@ class Shader:
         return (
             "#version 410 core\n"
             "layout(location=0) in vec2 a_position;\n"
-            "layout(location=1) in vec3 a_color;\n"
-            "out vec3 v_color;\n"
             "void main(){"
-            "v_color=a_color;"
             "gl_Position=vec4(a_position,0.0,1.0);"
             "}"
         )
@@ -115,9 +106,8 @@ class Shader:
 
         return (
             "#version 410 core\n"
-            "in vec3 v_color;"
             "out vec4 FragColor;"
             "void main(){"
-            "FragColor=vec4(v_color,1.0);"
+            "FragColor=vec4(0.0,1.0,0.4,1.0);"
             "}"
         )
