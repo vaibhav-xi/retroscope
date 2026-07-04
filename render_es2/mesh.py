@@ -38,11 +38,11 @@ class Mesh:
     # ---------------------------------------------------------
 
     def draw(self, shader):
-        
-        self.vao.bind()
 
         if self.count == 0:
             return
+        
+        self.vao.bind()
 
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
 
@@ -82,7 +82,7 @@ class Mesh:
             self.count,
         )
 
-        glDisableVertexAttribArray(0)
-        glDisableVertexAttribArray(1)
+        # glDisableVertexAttribArray(0)
+        # glDisableVertexAttribArray(1)
 
         glBindBuffer(GL_ARRAY_BUFFER, 0)
