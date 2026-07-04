@@ -1,10 +1,6 @@
-#version 410 core
-
-in vec3 v_color;
-
-out vec4 FragColor;
+precision mediump float;
 
 void main()
 {
-    FragColor = vec4(v_color, 1.0);
+    gl_FragColor = vec4(0.0, 1.0, 0.4, 1.0);
 }
