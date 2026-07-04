@@ -3,9 +3,8 @@ from pathlib import Path
 from OpenGL.GL import *
 
 from render_es2.shader import Shader
-from render_es2.mesh import Mesh
 from render_es2.geometry_builder import GeometryBuilder
-
+from render_es2.passes.geometry import GeometryPass
 
 class Renderer:
 
@@ -36,25 +35,16 @@ class Renderer:
             fragment,
         )
         
+        self.geometry_pass = GeometryPass(
+            self.shader,
+        )
+        
     def render(self, frame):
 
         glClear(GL_COLOR_BUFFER_BIT)
 
-        self.shader.use()
-
         packet = GeometryBuilder.build(frame)
 
-        for command in packet.commands:
-
-            if len(command.vertices) < 4:
-                continue
-
-            if command.dynamic:
-
-                command.mesh.update(
-                    command.vertices
-                )
-
-            command.mesh.draw(
-                self.shader
-            )
+        self.geometry_pass.execute(
+            packet
+        )
