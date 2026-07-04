@@ -8,7 +8,7 @@ Converts engine primitives into GPU render commands.
 
 import config
 
-from render.primitives import Polyline
+from render_backup.primitives import Polyline
 
 from render_es2.render_packet import (
     RenderPacket,

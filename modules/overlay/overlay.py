@@ -13,7 +13,7 @@ import config
 
 from core.module import Module
 
-from render.primitives import Text
+from render_backup.primitives import Text
 
 
 class OverlayModule(Module):

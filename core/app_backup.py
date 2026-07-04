@@ -22,10 +22,10 @@ from core.context import Context
 from core.frame import Frame
 from core.manager import Manager
 
-from render.renderer import Renderer
+from render_backup.renderer import Renderer
 
 from modules.demo.demo import DemoModule
-from render.display import Display
+from render_backup.display import Display
 
 class App:
 

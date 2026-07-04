@@ -25,7 +25,7 @@ import pygame
 
 import config
 
-from render.primitives import (
+from render_backup.primitives import (
     Point,
     Polyline,
     Circle,
@@ -33,7 +33,7 @@ from render.primitives import (
     Text,
 )
 
-from render.crt.pipeline import CRTPipeline
+from render_backup.crt.pipeline import CRTPipeline
 
 
 class Renderer:

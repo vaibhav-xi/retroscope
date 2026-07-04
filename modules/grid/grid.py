@@ -13,7 +13,7 @@ Colors and visual appearance come from the active Theme.
 import config
 
 from core.module import Module
-from render.primitives import Polyline
+from render_backup.primitives import Polyline
 
 
 class GridModule(Module):

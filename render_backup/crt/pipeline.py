@@ -24,11 +24,11 @@ Display
 
 from __future__ import annotations
 
-from render.crt.persistence import PersistenceStage
-from render.crt.bloom import BloomStage
-from render.crt.scanlines import ScanlineStage
-from render.crt.noise import NoiseStage
-from render.crt.vignette import VignetteStage
+from render_backup.crt.persistence import PersistenceStage
+from render_backup.crt.bloom import BloomStage
+from render_backup.crt.scanlines import ScanlineStage
+from render_backup.crt.noise import NoiseStage
+from render_backup.crt.vignette import VignetteStage
 
 
 class CRTPipeline:
