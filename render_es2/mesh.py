@@ -1,33 +1,41 @@
 import ctypes
-import numpy as np
+from array import array
 
 from OpenGL.GL import *
 
 
 class Mesh:
 
-    def __init__(self, vertices):
-
-        self.vertices = np.array(vertices, dtype=np.float32)
+    def __init__(self):
 
         self.vbo = glGenBuffers(1)
+        self.count = 0
+
+    # ---------------------------------------------------------
+
+    def update(self, vertices):
+
+        vertices = array("f", vertices)
+
+        self.count = len(vertices) // 2
 
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
 
         glBufferData(
             GL_ARRAY_BUFFER,
-            self.vertices.nbytes,
-            self.vertices,
-            GL_STATIC_DRAW,
+            len(vertices) * 4,
+            vertices,
+            GL_DYNAMIC_DRAW,
         )
 
         glBindBuffer(GL_ARRAY_BUFFER, 0)
 
-        self.count = len(vertices) // 2
-
     # ---------------------------------------------------------
 
     def draw(self, shader):
+
+        if self.count == 0:
+            return
 
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
 
@@ -47,12 +55,6 @@ class Mesh:
             ctypes.c_void_p(0),
         )
 
-        # glDrawArrays(
-        #     GL_TRIANGLES,
-        #     0,
-        #     self.count,
-        # )
-        
         glDrawArrays(
             GL_LINES,
             0,

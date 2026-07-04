@@ -36,8 +36,12 @@ class Renderer:
             fragment,
         )
 
-    # -------------------------------------------------
+        #
+        # Create ONE mesh forever
+        #
 
+        self.mesh = Mesh()
+        
     def render(self, frame):
 
         glClear(GL_COLOR_BUFFER_BIT)
@@ -46,13 +50,8 @@ class Renderer:
 
         vertices = Geometry.build(frame)
 
-        #
-        # Nothing to draw.
-        #
-
         if len(vertices) < 4:
             return
 
-        mesh = Mesh(vertices)
-
-        mesh.draw(self.shader)
+        self.mesh.update(vertices)
+        self.mesh.draw(self.shader)
