@@ -52,9 +52,10 @@ class Geometry:
     @staticmethod
     def _x(x):
 
-        return (x / config.WIDTH) - 1.0
+        return (2.0 * x / config.WIDTH) - 1.0
+
 
     @staticmethod
     def _y(y):
 
-        return 1.0 - (y / config.HEIGHT)
+        return 1.0 - (2.0 * y / config.HEIGHT)
