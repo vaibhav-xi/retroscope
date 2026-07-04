@@ -2,7 +2,7 @@ import ctypes
 from array import array
 
 from OpenGL.GL import *
-
+import numpy as np
 
 class Mesh:
 
@@ -15,7 +15,10 @@ class Mesh:
 
     def update(self, vertices):
 
-        vertices = array("f", vertices)
+        vertices = np.array(
+            vertices,
+            dtype=np.float32,
+        )
 
         self.count = len(vertices) // 2
 
@@ -23,7 +26,7 @@ class Mesh:
 
         glBufferData(
             GL_ARRAY_BUFFER,
-            len(vertices) * 4,
+            vertices.nbytes,
             vertices,
             GL_DYNAMIC_DRAW,
         )
