@@ -16,6 +16,8 @@ class Geometry:
     def build(frame):
 
         vertices = []
+        
+        print(config.WIDTH, config.HEIGHT)
 
         for primitive in frame.primitives:
 

@@ -19,6 +19,8 @@ import platform
 
 import glfw
 
+from OpenGL.GL import *
+
 
 class Window:
 
@@ -88,6 +90,8 @@ class Window:
             None,
 
         )
+        
+        print(glGetIntegerv(GL_VIEWPORT))
 
         if self.handle is None:
 
