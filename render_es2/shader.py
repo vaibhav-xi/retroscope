@@ -33,22 +33,6 @@ class Shader:
         )
 
         glLinkProgram(self.program)
-        
-        print(
-            "position:",
-            glGetAttribLocation(
-                self.program,
-                "a_position",
-            ),
-        )
-
-        print(
-            "color:",
-            glGetAttribLocation(
-                self.program,
-                "a_color",
-            ),
-        )
 
         if glGetProgramiv(
             self.program,

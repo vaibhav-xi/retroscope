@@ -8,17 +8,32 @@ during one engine update.
 
 Simulation modules never draw directly.
 
-Instead, they add render primitives to the Frame.
+Instead, they emit render primitives into render layers.
 
-The Renderer later converts these primitives into pixels.
+The Renderer later converts those layers into GPU commands.
 
 This file MUST NEVER import pygame.
 """
 
 from dataclasses import dataclass, field
-from typing import List
+from enum import Enum, auto
+from typing import Dict, Iterator, List
 
 from render.primitives import Primitive
+
+
+class Layer(Enum):
+    """
+    Rendering order.
+    """
+
+    BACKGROUND = auto()
+
+    MAIN = auto()
+
+    OVERLAY = auto()
+
+    UI = auto()
 
 
 @dataclass
@@ -26,38 +41,69 @@ class Frame:
     """
     Renderer-independent frame.
 
-    The Frame is recreated (or cleared) every engine tick.
-    Modules emit primitives into this object.
+    Modules emit primitives into render layers.
     """
 
-    primitives: List[Primitive] = field(default_factory=list)
+    layers: Dict[Layer, List[Primitive]] = field(
+        default_factory=lambda: {
+            Layer.BACKGROUND: [],
+            Layer.MAIN: [],
+            Layer.OVERLAY: [],
+            Layer.UI: [],
+        }
+    )
 
     # ---------------------------------------------------------
 
-    def add(self, primitive: Primitive) -> None:
+    def add(
+        self,
+        primitive: Primitive,
+        layer: Layer = Layer.MAIN,
+    ) -> None:
         """
-        Add a render primitive.
+        Add a primitive to a render layer.
         """
 
-        self.primitives.append(primitive)
+        self.layers[layer].append(
+            primitive
+        )
+
+    # ---------------------------------------------------------
+
+    def primitives(self) -> Iterator[Primitive]:
+        """
+        Iterate over every primitive in render order.
+        """
+
+        for layer in Layer:
+
+            yield from self.layers[layer]
 
     # ---------------------------------------------------------
 
     def clear(self) -> None:
         """
-        Remove every primitive from this frame.
+        Remove every primitive.
         """
 
-        self.primitives.clear()
+        for primitives in self.layers.values():
+
+            primitives.clear()
 
     # ---------------------------------------------------------
 
     def __len__(self) -> int:
 
-        return len(self.primitives)
+        return sum(
+
+            len(primitives)
+
+            for primitives in self.layers.values()
+
+        )
 
     # ---------------------------------------------------------
 
     def __iter__(self):
 
-        return iter(self.primitives)
+        return self.primitives()

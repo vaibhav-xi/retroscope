@@ -8,12 +8,10 @@ class RenderCommand:
 
     vertices: list[float]
 
-    color: tuple[float, float, float]
-
     mesh: Mesh = field(
         default_factory=Mesh
     )
-    
+
     dynamic: bool = True
 
 
