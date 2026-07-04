@@ -26,7 +26,7 @@ class Geometry:
 
         vertices = []
         
-        print(config.WIDTH, config.HEIGHT)
+        # print(config.WIDTH, config.HEIGHT)
 
         for primitive in frame.primitives:
 
