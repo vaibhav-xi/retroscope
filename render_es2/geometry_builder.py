@@ -8,7 +8,7 @@ Converts engine primitives into GPU render commands.
 
 import config
 
-from render_backup.primitives import Polyline
+from render.primitives import Polyline
 
 from render_es2.render_packet import (
     RenderPacket,
@@ -28,39 +28,44 @@ class GeometryBuilder:
         # Build one render command per layer.
         #
 
-        for layer, primitives in frame.layers.items():
+        for layer, renderables in frame.layers.items():
 
             vertices = []
 
-            for primitive in primitives:
+            for renderable in renderables:
 
-                if not isinstance(
-                    primitive,
-                    Polyline,
-                ):
+                if not renderable.is_visible:
                     continue
 
-                points = primitive.points
+                for primitive in renderable.primitives:
 
-                if len(points) < 2:
-                    continue
+                    if not isinstance(
+                        primitive,
+                        Polyline,
+                    ):
+                        continue
 
-                for i in range(
-                    len(points) - 1
-                ):
+                    points = primitive.points
 
-                    x1, y1 = points[i]
-                    x2, y2 = points[i + 1]
+                    if len(points) < 2:
+                        continue
 
-                    vertices.extend([
+                    for i in range(
+                        len(points) - 1
+                    ):
 
-                        GeometryBuilder._x(x1),
-                        GeometryBuilder._y(y1),
+                        x1, y1 = points[i]
+                        x2, y2 = points[i + 1]
 
-                        GeometryBuilder._x(x2),
-                        GeometryBuilder._y(y2),
+                        vertices.extend([
 
-                    ])
+                            GeometryBuilder._x(x1),
+                            GeometryBuilder._y(y1),
+
+                            GeometryBuilder._x(x2),
+                            GeometryBuilder._y(y2),
+
+                        ])
 
             #
             # Skip empty layers.

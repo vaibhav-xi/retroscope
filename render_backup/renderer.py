@@ -25,7 +25,7 @@ import pygame
 
 import config
 
-from render_backup.primitives import (
+from render.primitives import (
     Point,
     Polyline,
     Circle,

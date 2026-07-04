@@ -19,8 +19,8 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Dict, Iterator, List
 
-from render_backup.primitives import Primitive
-
+from render.primitives import Primitive
+from render.renderable import Renderable
 
 class Layer(Enum):
     """
@@ -44,7 +44,7 @@ class Frame:
     Modules emit primitives into render layers.
     """
 
-    layers: Dict[Layer, List[Primitive]] = field(
+    layers: Dict[Layer, List[Renderable]] = field(
         default_factory=lambda: {
             Layer.BACKGROUND: [],
             Layer.MAIN: [],
@@ -60,24 +60,27 @@ class Frame:
         primitive: Primitive,
         layer: Layer = Layer.MAIN,
     ) -> None:
-        """
-        Add a primitive to a render layer.
-        """
 
         self.layers[layer].append(
-            primitive
+
+            Renderable.from_primitive(
+                primitive
+            )
+
         )
 
     # ---------------------------------------------------------
 
-    def primitives(self) -> Iterator[Primitive]:
-        """
-        Iterate over every primitive in render order.
-        """
+    def primitives(self):
 
         for layer in Layer:
 
-            yield from self.layers[layer]
+            for renderable in self.layers[layer]:
+
+                if not renderable.visible:
+                    continue
+
+                yield from renderable.primitives
 
     # ---------------------------------------------------------
 

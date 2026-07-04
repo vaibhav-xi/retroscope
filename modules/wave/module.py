@@ -14,7 +14,7 @@ import config
 from core.module import Module
 from core.signal import Signal
 
-from render_backup.primitives import Polyline
+from render.primitives import Polyline
 
 from modules.wave.generator import SignalGenerator
 

@@ -10,7 +10,7 @@ It emits one instance of every render primitive.
 
 from core.module import Module
 
-from render_backup.primitives import (
+from render.primitives import (
     Point,
     Polyline,
     Circle,
