@@ -96,51 +96,51 @@ class GridModule(Module):
                 )
             )
 
-        #
-        # Minor Vertical Lines
-        #
+        # #
+        # # Minor Vertical Lines
+        # #
 
-        step = dx / self.minor_divisions
+        # step = dx / self.minor_divisions
 
-        for major in range(self.columns):
+        # for major in range(self.columns):
 
-            for minor in range(1, self.minor_divisions):
+        #     for minor in range(1, self.minor_divisions):
 
-                x = major * dx + minor * step
+        #         x = major * dx + minor * step
 
-                frame.add(
-                    Polyline(
-                        points=[
-                            (x, 0),
-                            (x, height),
-                        ],
-                        color=theme.grid_minor,
-                        width=1,
-                    )
-                )
+        #         frame.add(
+        #             Polyline(
+        #                 points=[
+        #                     (x, 0),
+        #                     (x, height),
+        #                 ],
+        #                 color=theme.grid_minor,
+        #                 width=1,
+        #             )
+        #         )
 
-        #
-        # Minor Horizontal Lines
-        #
+        # #
+        # # Minor Horizontal Lines
+        # #
 
-        step = dy / self.minor_divisions
+        # step = dy / self.minor_divisions
 
-        for major in range(self.rows):
+        # for major in range(self.rows):
 
-            for minor in range(1, self.minor_divisions):
+        #     for minor in range(1, self.minor_divisions):
 
-                y = major * dy + minor * step
+        #         y = major * dy + minor * step
 
-                frame.add(
-                    Polyline(
-                        points=[
-                            (0, y),
-                            (width, y),
-                        ],
-                        color=theme.grid_minor,
-                        width=1,
-                    )
-                )
+        #         frame.add(
+        #             Polyline(
+        #                 points=[
+        #                     (0, y),
+        #                     (width, y),
+        #                 ],
+        #                 color=theme.grid_minor,
+        #                 width=1,
+        #             )
+        #         )
 
     # ---------------------------------------------------------
 
