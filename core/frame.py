@@ -68,6 +68,16 @@ class Frame:
             )
 
         )
+        
+    def add_renderable(
+        self,
+        renderable: Renderable,
+        layer: Layer = Layer.MAIN,
+    ) -> None:
+
+        self.layers[layer].append(
+            renderable
+        )
 
     # ---------------------------------------------------------
 
@@ -77,7 +87,7 @@ class Frame:
 
             for renderable in self.layers[layer]:
 
-                if not renderable.visible:
+                if not renderable.is_visible:
                     continue
 
                 yield from renderable.primitives

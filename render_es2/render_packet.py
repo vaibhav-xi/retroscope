@@ -1,21 +1,15 @@
 from dataclasses import dataclass, field
 
-from render_es2.mesh import Mesh
+from render.renderable import Renderable
 
-from render_es2.material import Material
+from typing import Optional
 
 @dataclass
 class RenderCommand:
 
-    vertices: list[float]
+    renderable: Renderable
 
-    material: Material
-
-    mesh: Mesh = field(
-        default_factory=Mesh
-    )
-
-    dynamic: bool = True
+    vertices: Optional[list[float]]
 
 
 @dataclass

@@ -18,13 +18,22 @@ Future responsibilities:
 from dataclasses import dataclass, field
 
 from render.primitives import Primitive
-
+from render_es2.material import Material
+from render_es2.mesh import Mesh
 
 @dataclass
 class Renderable:
 
-    primitives: list[Primitive] = field(
-        default_factory=list
+    primitives: list[Primitive] = field(default_factory=list)
+
+    material: Material = field(
+        default_factory=lambda: Material(
+            color=(0.0, 1.0, 0.4),
+        )
+    )
+    
+    mesh: Mesh = field(
+        default_factory=Mesh
     )
 
     is_dynamic: bool = True

@@ -20,6 +20,9 @@ class Mesh:
     # ---------------------------------------------------------
 
     def update(self, vertices):
+        
+        if vertices is None:
+            return
 
         vertices = np.array(
             vertices,

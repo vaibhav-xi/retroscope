@@ -8,14 +8,14 @@ Converts engine primitives into GPU render commands.
 
 import config
 
+from core.frame import Layer
+
 from render.primitives import Polyline
 
 from render_es2.render_packet import (
     RenderPacket,
     RenderCommand,
 )
-
-from render_es2.material import Material
 
 class GeometryBuilder:
 
@@ -25,17 +25,22 @@ class GeometryBuilder:
         packet = RenderPacket()
 
         #
-        # Build one render command per layer.
+        # Build render commands in explicit layer order.
         #
 
-        for layer, renderables in frame.layers.items():
+        for layer in (
+            Layer.BACKGROUND,
+            Layer.MAIN,
+            Layer.OVERLAY,
+            Layer.UI,
+        ):
 
-            vertices = []
-
-            for renderable in renderables:
+            for renderable in frame.layers[layer]:
 
                 if not renderable.is_visible:
                     continue
+
+                vertices = []
 
                 for primitive in renderable.primitives:
 
@@ -50,9 +55,7 @@ class GeometryBuilder:
                     if len(points) < 2:
                         continue
 
-                    for i in range(
-                        len(points) - 1
-                    ):
+                    for i in range(len(points) - 1):
 
                         x1, y1 = points[i]
                         x2, y2 = points[i + 1]
@@ -67,28 +70,43 @@ class GeometryBuilder:
 
                         ])
 
-            #
-            # Skip empty layers.
-            #
+                if not vertices:
+                    continue
 
-            if not vertices:
-                continue
+                if (
+                    renderable.is_dynamic
+                    or renderable.is_dirty
+                ):
 
-            packet.add(
+                    packet.add(
 
-                RenderCommand(
+                        RenderCommand(
 
-                    vertices=vertices,
+                            renderable=renderable,
 
-                    material=Material(
+                            vertices=vertices,
 
-                        color=(0.0, 1.0, 0.4),
+                        )
 
-                    ),
+                    )
 
-                )
+                else:
 
-            )
+                    #
+                    # Static mesh already lives on the GPU.
+                    #
+
+                    packet.add(
+
+                        RenderCommand(
+
+                            renderable=renderable,
+
+                            vertices=None,
+
+                        )
+
+                    )
 
         return packet
 

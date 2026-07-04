@@ -4,16 +4,15 @@ RetroScope
 Grid Module
 
 Produces the oscilloscope grid.
-
-The module defines the grid geometry only.
-
-Colors and visual appearance come from the active Theme.
 """
 
 import config
 
+from core.frame import Layer
 from core.module import Module
+
 from render.primitives import Polyline
+from render.renderable import Renderable
 
 
 class GridModule(Module):
@@ -21,10 +20,6 @@ class GridModule(Module):
     def __init__(self):
 
         super().__init__("Grid")
-
-        #
-        # Grid layout
-        #
 
         self.columns = 10
         self.rows = 8
@@ -34,7 +29,7 @@ class GridModule(Module):
 
     def initialize(self, context):
 
-        self.cached = []
+        pass
 
     # ---------------------------------------------------------
 
@@ -45,13 +40,6 @@ class GridModule(Module):
     # ---------------------------------------------------------
 
     def emit(self, context, frame):
-        
-        if self.cached:
-
-            for primitive in self.cached:
-                frame.add(primitive)
-
-            return
 
         theme = context.theme
 
@@ -62,6 +50,14 @@ class GridModule(Module):
         dy = height / self.rows
 
         #
+        # Entire grid becomes ONE renderable.
+        #
+
+        grid = Renderable(
+            is_dynamic=False,
+        )
+
+        #
         # Major Vertical Lines
         #
 
@@ -69,30 +65,28 @@ class GridModule(Module):
 
             x = i * dx
 
-            color = theme.grid_center if i == self.columns // 2 else theme.grid_major
-
-            # frame.add(
-            #     Polyline(
-            #         points=[
-            #             (x, 0),
-            #             (x, height),
-            #         ],
-            #         color=color,
-            #         width=1,
-            #     )
-            # )
-            
-            polyline = Polyline(
-                points=[
-                    (x, 0),
-                    (x, height),
-                ],
-                color=color,
-                width=1,
+            color = (
+                theme.grid_center
+                if i == self.columns // 2
+                else theme.grid_major
             )
-            
-            frame.add(polyline)
-            self.cached.append(polyline)
+
+            grid.add(
+
+                Polyline(
+
+                    points=[
+                        (x, 0),
+                        (x, height),
+                    ],
+
+                    color=color,
+
+                    width=1,
+
+                )
+
+            )
 
         #
         # Major Horizontal Lines
@@ -102,34 +96,32 @@ class GridModule(Module):
 
             y = i * dy
 
-            color = theme.grid_center if i == self.rows // 2 else theme.grid_major
-
-            # frame.add(
-            #     Polyline(
-            #         points=[
-            #             (0, y),
-            #             (width, y),
-            #         ],
-            #         color=color,
-            #         width=1,
-            #     )
-            # )
-            
-            polyline = Polyline(
-                points=[
-                    (0, y),
-                    (width, y),
-                ],
-                color=color,
-                width=1,
+            color = (
+                theme.grid_center
+                if i == self.rows // 2
+                else theme.grid_major
             )
 
-            frame.add(polyline)
-            self.cached.append(polyline)
+            grid.add(
 
-        # #
-        # # Minor Vertical Lines
-        # #
+                Polyline(
+
+                    points=[
+                        (0, y),
+                        (width, y),
+                    ],
+
+                    color=color,
+
+                    width=1,
+
+                )
+
+            )
+
+        #
+        # Minor Vertical Lines
+        #
 
         # step = dx / self.minor_divisions
 
@@ -139,20 +131,26 @@ class GridModule(Module):
 
         #         x = major * dx + minor * step
 
-        #         frame.add(
+        #         grid.add(
+
         #             Polyline(
+
         #                 points=[
         #                     (x, 0),
         #                     (x, height),
         #                 ],
+
         #                 color=theme.grid_minor,
+
         #                 width=1,
+
         #             )
+
         #         )
 
-        # #
-        # # Minor Horizontal Lines
-        # #
+        #
+        # Minor Horizontal Lines
+        #
 
         # step = dy / self.minor_divisions
 
@@ -162,16 +160,31 @@ class GridModule(Module):
 
         #         y = major * dy + minor * step
 
-        #         frame.add(
+        #         grid.add(
+
         #             Polyline(
+
         #                 points=[
         #                     (0, y),
         #                     (width, y),
         #                 ],
+
         #                 color=theme.grid_minor,
+
         #                 width=1,
+
         #             )
+
         #         )
+
+        #
+        # Submit a single renderable.
+        #
+
+        frame.add_renderable(
+            grid,
+            Layer.BACKGROUND,
+        )
 
     # ---------------------------------------------------------
 
