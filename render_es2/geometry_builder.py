@@ -17,6 +17,7 @@ from render_es2.render_packet import (
     RenderCommand,
 )
 
+from render_es2.stroke_builder import StrokeBuilder
 
 class GeometryBuilder:
 
@@ -61,31 +62,18 @@ class GeometryBuilder:
 
                     for primitive in renderable.primitives:
 
-                        if not isinstance(
+                        if isinstance(
                             primitive,
                             Polyline,
                         ):
-                            continue
 
-                        points = primitive.points
+                            vertices.extend(
 
-                        if len(points) < 2:
-                            continue
+                                StrokeBuilder.build(
+                                    primitive
+                                )
 
-                        for i in range(len(points) - 1):
-
-                            x1, y1 = points[i]
-                            x2, y2 = points[i + 1]
-
-                            vertices.extend([
-
-                                GeometryBuilder._x(x1),
-                                GeometryBuilder._y(y1),
-
-                                GeometryBuilder._x(x2),
-                                GeometryBuilder._y(y2),
-
-                            ])
+                            )
 
                     #
                     # Cache static geometry.
