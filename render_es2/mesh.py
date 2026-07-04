@@ -42,20 +42,34 @@ class Mesh:
 
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
 
-        location = glGetAttribLocation(
-            shader.program,
-            "a_position",
-        )
+        #
+        # Position
+        #
 
-        glEnableVertexAttribArray(location)
+        glEnableVertexAttribArray(0)
 
         glVertexAttribPointer(
-            location,
+            0,
             2,
             GL_FLOAT,
             GL_FALSE,
             5 * 4,
             ctypes.c_void_p(0),
+        )
+
+        #
+        # Color
+        #
+
+        glEnableVertexAttribArray(1)
+
+        glVertexAttribPointer(
+            1,
+            3,
+            GL_FLOAT,
+            GL_FALSE,
+            5 * 4,
+            ctypes.c_void_p(2 * 4),
         )
 
         glDrawArrays(
@@ -64,6 +78,7 @@ class Mesh:
             self.count,
         )
 
-        glDisableVertexAttribArray(location)
+        glDisableVertexAttribArray(0)
+        glDisableVertexAttribArray(1)
 
         glBindBuffer(GL_ARRAY_BUFFER, 0)
