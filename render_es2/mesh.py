@@ -3,11 +3,13 @@ from array import array
 
 from OpenGL.GL import *
 import numpy as np
+from render_es2.vao import VAO
 
 class Mesh:
 
     def __init__(self):
-
+        
+        self.vao = VAO()
         self.vbo = glGenBuffers(1)
         self.count = 0
 
@@ -36,6 +38,8 @@ class Mesh:
     # ---------------------------------------------------------
 
     def draw(self, shader):
+        
+        self.vao.bind()
 
         if self.count == 0:
             return
