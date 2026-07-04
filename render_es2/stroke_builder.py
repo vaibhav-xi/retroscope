@@ -66,10 +66,46 @@ class StrokeBuilder:
             px = -uy
             py = ux
             
+            # if i == 0:
+            #     print(
+            #         f"dir=({ux:.3f}, {uy:.3f}) "
+            #         f"perp=({px:.3f}, {py:.3f})"
+            #     )
+            
+            #
+            # Half line width in screen pixels.
+            #
+
+            half_width = 2.0
+
+            #
+            # Four corners of the future stroke.
+            #
+
+            left1 = (
+                x1 + px * half_width,
+                y1 + py * half_width,
+            )
+
+            right1 = (
+                x1 - px * half_width,
+                y1 - py * half_width,
+            )
+
+            left2 = (
+                x2 + px * half_width,
+                y2 + py * half_width,
+            )
+
+            right2 = (
+                x2 - px * half_width,
+                y2 - py * half_width,
+            )
+            
             if i == 0:
                 print(
-                    f"dir=({ux:.3f}, {uy:.3f}) "
-                    f"perp=({px:.3f}, {py:.3f})"
+                    "L1", left1,
+                    "R1", right1,
                 )
 
             #
