@@ -14,6 +14,7 @@ import config
 
 from render.primitives import Polyline
 
+import math
 
 class StrokeBuilder:
 
@@ -31,6 +32,49 @@ class StrokeBuilder:
 
             x1, y1 = points[i]
             x2, y2 = points[i + 1]
+
+            #
+            # Segment direction.
+            #
+
+            dx = x2 - x1
+            dy = y2 - y1
+
+            length = math.hypot(
+                dx,
+                dy,
+            )
+
+            #
+            # Ignore zero-length segments.
+            #
+
+            if length == 0:
+                continue
+
+            #
+            # Unit direction.
+            #
+
+            ux = dx / length
+            uy = dy / length
+
+            #
+            # Unit perpendicular.
+            #
+
+            px = -uy
+            py = ux
+            
+            if i == 0:
+                print(
+                    f"dir=({ux:.3f}, {uy:.3f}) "
+                    f"perp=({px:.3f}, {py:.3f})"
+                )
+
+            #
+            # Still emit the original GL_LINES geometry.
+            #
 
             vertices.extend([
 
