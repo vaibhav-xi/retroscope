@@ -90,8 +90,6 @@ class Window:
             None,
 
         )
-        
-        print(glGetIntegerv(GL_VIEWPORT))
 
         if self.handle is None:
 
@@ -104,6 +102,8 @@ class Window:
         glfw.make_context_current(
             self.handle
         )
+        
+        print(glGetIntegerv(GL_VIEWPORT))
 
         glfw.swap_interval(1)
 
