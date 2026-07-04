@@ -15,9 +15,10 @@ Knows nothing about rendering.
 
 from __future__ import annotations
 
-import glfw
+import platform
 
-from OpenGL.GL import *
+import glfw
+from OpenGL import GL
 
 
 class Window:
@@ -79,14 +80,11 @@ class Window:
             )
 
         self.handle = glfw.create_window(
-
             width,
             height,
             title,
-
             None,
             None,
-
         )
 
         if self.handle is None:
@@ -97,13 +95,33 @@ class Window:
                 "Unable to create window."
             )
 
-        glfw.make_context_current(
-            self.handle
-        )
-        
-        print(glGetIntegerv(GL_VIEWPORT))
+        glfw.make_context_current(self.handle)
 
         glfw.swap_interval(1)
+
+        #
+        # Print OpenGL information
+        #
+
+        print(
+            "Vendor  :",
+            GL.glGetString(GL.GL_VENDOR).decode(),
+        )
+
+        print(
+            "Renderer:",
+            GL.glGetString(GL.GL_RENDERER).decode(),
+        )
+
+        print(
+            "Version :",
+            GL.glGetString(GL.GL_VERSION).decode(),
+        )
+
+        print(
+            "Viewport:",
+            GL.glGetIntegerv(GL.GL_VIEWPORT),
+        )
 
     # ---------------------------------------------------------
 
