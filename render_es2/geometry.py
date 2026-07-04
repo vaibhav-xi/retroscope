@@ -48,7 +48,8 @@ class Geometry:
                 x1, y1 = points[i]
                 x2, y2 = points[i + 1]
 
-                r, g, b = Geometry.rgb(primitive.color)
+                # r, g, b = Geometry.rgb(primitive.color)
+                r, g, b = 0.0, 1.0, 0.4
 
                 vertices.extend([
 
