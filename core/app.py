@@ -1,41 +1,31 @@
-"""
-RetroScope
+from render_es2.window import Window
+from render_es2.renderer import Renderer
 
-App
-
-Temporary OpenGL bootstrap.
-
-Purpose:
-
-Verify GLFW + ModernGL works before
-connecting the engine.
-"""
-
-from __future__ import annotations
-
-from render.window import Window
+import config
 
 
 class App:
 
     def __init__(self):
 
-        self.window = Window()
+        self.window = Window(
+            config.WIDTH,
+            config.HEIGHT,
+            config.WINDOW_TITLE,
+        )
 
-    # ---------------------------------------------------------
+        self.renderer = Renderer()
 
     def run(self):
 
         while not self.window.should_close():
 
-            self.window.poll_events()
+            self.window.poll()
 
-            self.window.begin_frame()
+            self.renderer.begin_frame()
 
-            #
-            # Nothing rendered yet.
-            #
+            self.renderer.end_frame()
 
-            self.window.end_frame()
+            self.window.swap()
 
         self.window.shutdown()
