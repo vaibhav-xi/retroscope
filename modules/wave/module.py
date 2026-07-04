@@ -118,6 +118,7 @@ class WaveModule(Module):
                     1.0,
                     0.5,
                 ),
+                line_width=2.0,
             ),
         )
 
@@ -126,8 +127,6 @@ class WaveModule(Module):
             Polyline(
 
                 points=points,
-
-                width=2,
 
             )
 

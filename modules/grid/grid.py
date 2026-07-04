@@ -60,6 +60,7 @@ class GridModule(Module):
                     0.0,
                     0.0,
                 ),
+                line_width=1.0,
             ),
         )
 
@@ -79,8 +80,6 @@ class GridModule(Module):
                         (x, 0),
                         (x, height),
                     ],
-
-                    width=1,
 
                 )
 
@@ -102,8 +101,6 @@ class GridModule(Module):
                         (0, y),
                         (width, y),
                     ],
-
-                    width=1,
 
                 )
 

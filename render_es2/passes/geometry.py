@@ -1,5 +1,5 @@
 from render_es2.render_pass import RenderPass
-
+from OpenGL.GL import glLineWidth
 
 class GeometryPass(RenderPass):
 
@@ -42,6 +42,19 @@ class GeometryPass(RenderPass):
             self.shader.set_color(
                 renderable.material.color
             )
+            
+            #
+            # Line width.
+            #
+            # Note:
+            # Many OpenGL ES 2.0 drivers clamp this to 1.0.
+            # We keep it here so the Material API stays stable
+            # when we later render thick lines as quads.
+            #
+
+            # glLineWidth(
+            #     renderable.material.line_width
+            # )
 
             #
             # Draw.

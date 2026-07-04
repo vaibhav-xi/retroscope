@@ -54,8 +54,6 @@ class Polyline(Primitive):
 
     points: List[Point2D]
 
-    width: int = 1
-
 
 # ==========================================================
 # Circle
@@ -67,8 +65,6 @@ class Circle(Primitive):
     center: Point2D
 
     radius: float
-
-    width: int = 1
 
 
 # ==========================================================
