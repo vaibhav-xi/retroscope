@@ -17,6 +17,7 @@ from render_es2.render_packet import (
     RenderCommand,
 )
 
+
 class GeometryBuilder:
 
     @staticmethod
@@ -25,7 +26,7 @@ class GeometryBuilder:
         packet = RenderPacket()
 
         #
-        # Build render commands in explicit layer order.
+        # Build render commands in render order.
         #
 
         for layer in (
@@ -40,73 +41,85 @@ class GeometryBuilder:
                 if not renderable.is_visible:
                     continue
 
-                vertices = []
-
-                for primitive in renderable.primitives:
-
-                    if not isinstance(
-                        primitive,
-                        Polyline,
-                    ):
-                        continue
-
-                    points = primitive.points
-
-                    if len(points) < 2:
-                        continue
-
-                    for i in range(len(points) - 1):
-
-                        x1, y1 = points[i]
-                        x2, y2 = points[i + 1]
-
-                        vertices.extend([
-
-                            GeometryBuilder._x(x1),
-                            GeometryBuilder._y(y1),
-
-                            GeometryBuilder._x(x2),
-                            GeometryBuilder._y(y2),
-
-                        ])
-
-                if not vertices:
-                    continue
+                #
+                # Static geometry already cached.
+                #
 
                 if (
-                    renderable.is_dynamic
-                    or renderable.is_dirty
+                    not renderable.is_dynamic
+                    and
+                    not renderable.is_dirty
+                    and
+                    renderable.cached_vertices is not None
                 ):
 
-                    packet.add(
-
-                        RenderCommand(
-
-                            renderable=renderable,
-
-                            vertices=vertices,
-
-                        )
-
-                    )
+                    vertices = None
 
                 else:
 
+                    vertices = []
+
+                    for primitive in renderable.primitives:
+
+                        if not isinstance(
+                            primitive,
+                            Polyline,
+                        ):
+                            continue
+
+                        points = primitive.points
+
+                        if len(points) < 2:
+                            continue
+
+                        for i in range(len(points) - 1):
+
+                            x1, y1 = points[i]
+                            x2, y2 = points[i + 1]
+
+                            vertices.extend([
+
+                                GeometryBuilder._x(x1),
+                                GeometryBuilder._y(y1),
+
+                                GeometryBuilder._x(x2),
+                                GeometryBuilder._y(y2),
+
+                            ])
+
                     #
-                    # Static mesh already lives on the GPU.
+                    # Cache static geometry.
                     #
 
-                    packet.add(
+                    if (
+                        not renderable.is_dynamic
+                        and vertices
+                    ):
 
-                        RenderCommand(
+                        renderable.cached_vertices = vertices
 
-                            renderable=renderable,
+                #
+                # Skip empty renderables.
+                #
 
-                            vertices=None,
+                if (
+                    vertices is not None
+                    and
+                    not vertices
+                ):
+                    continue
 
-                        )
+                packet.add(
+
+                    RenderCommand(
+
+                        renderable=renderable,
+
+                        vertices=vertices,
 
                     )
+
+                )
 
         return packet
 

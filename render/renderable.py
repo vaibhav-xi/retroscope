@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from render.primitives import Primitive
 from render_es2.material import Material
 from render_es2.mesh import Mesh
+from typing import Optional
 
 @dataclass
 class Renderable:
@@ -35,6 +36,8 @@ class Renderable:
     mesh: Mesh = field(
         default_factory=Mesh
     )
+    
+    cached_vertices: Optional[list[float]] = None
 
     is_dynamic: bool = True
 
