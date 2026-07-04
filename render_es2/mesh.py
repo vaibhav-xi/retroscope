@@ -47,8 +47,14 @@ class Mesh:
             ctypes.c_void_p(0),
         )
 
+        # glDrawArrays(
+        #     GL_TRIANGLES,
+        #     0,
+        #     self.count,
+        # )
+        
         glDrawArrays(
-            GL_TRIANGLES,
+            GL_LINES,
             0,
             self.count,
         )
