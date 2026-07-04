@@ -36,7 +36,15 @@ class GeometryPass(RenderPass):
                 renderable.is_dirty = False
 
             #
-            # Draw every frame.
+            # Bind material.
+            #
+
+            self.shader.set_color(
+                renderable.material.color
+            )
+
+            #
+            # Draw.
             #
 
             renderable.mesh.draw(

@@ -13,6 +13,7 @@ from core.module import Module
 
 from render.primitives import Polyline
 from render.renderable import Renderable
+from render_es2.material import Material
 
 
 class GridModule(Module):
@@ -55,6 +56,13 @@ class GridModule(Module):
 
         grid = Renderable(
             is_dynamic=False,
+            material=Material(
+                color=(
+                    1.0,
+                    0.0,
+                    0.0,
+                ),
+            ),
         )
 
         #

@@ -44,6 +44,22 @@ class Shader:
                     self.program
                 ).decode()
             )
+            
+    # -------------------------------------------------
+
+    def set_color(self, color):
+
+        location = glGetUniformLocation(
+            self.program,
+            "u_color",
+        )
+
+        glUniform3f(
+            location,
+            color[0],
+            color[1],
+            color[2],
+        )
 
     # -------------------------------------------------
 
@@ -79,8 +95,8 @@ class Shader:
         return (
             "#version 410 core\n"
             "layout(location=0) in vec2 a_position;\n"
-            "void main(){"
-            "gl_Position=vec4(a_position,0.0,1.0);"
+            "void main(){\n"
+            "    gl_Position = vec4(a_position, 0.0, 1.0);\n"
             "}"
         )
 
@@ -90,8 +106,9 @@ class Shader:
 
         return (
             "#version 410 core\n"
-            "out vec4 FragColor;"
-            "void main(){"
-            "FragColor=vec4(0.0,1.0,0.4,1.0);"
+            "uniform vec3 u_color;\n"
+            "out vec4 FragColor;\n"
+            "void main(){\n"
+            "    FragColor = vec4(u_color, 1.0);\n"
             "}"
         )

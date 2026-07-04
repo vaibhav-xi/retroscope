@@ -17,6 +17,8 @@ from core.signal import Signal
 from render.primitives import Polyline
 
 from modules.wave.generator import SignalGenerator
+from render.renderable import Renderable
+from render_es2.material import Material
 
 
 class WaveModule(Module):
@@ -81,16 +83,13 @@ class WaveModule(Module):
 
     def emit(self, context, frame):
 
-        theme = context.theme
-
         points = []
 
         center = config.HEIGHT / 2
-
         scale = config.HEIGHT * self.amplitude
 
         #
-        # Sample the signal registry.
+        # Sample the signal.
         #
 
         for x in range(self.samples):
@@ -105,23 +104,39 @@ class WaveModule(Module):
             y = center - value * scale
 
             points.append(
-
                 (x, y)
-
             )
 
-        frame.add(
+        #
+        # Wave renderable.
+        #
+
+        wave = Renderable(
+            material=Material(
+                color=(
+                    0.2,
+                    1.0,
+                    0.5,
+                ),
+            ),
+        )
+
+        wave.add(
 
             Polyline(
 
                 points=points,
 
-                color=theme.trace_main,
+                color=context.theme.trace_main,   # temporary
 
                 width=2,
 
             )
 
+        )
+
+        frame.add_renderable(
+            wave
         )
 
     # ---------------------------------------------------------

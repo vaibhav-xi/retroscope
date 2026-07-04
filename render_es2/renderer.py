@@ -35,6 +35,8 @@ class Renderer:
             fragment,
         )
         
+        self.shader.use()
+        
         self.geometry_pass = GeometryPass(
             self.shader,
         )
