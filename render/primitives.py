@@ -1,16 +1,11 @@
 """
 RetroScope
 
-Render Primitives
+Geometry Primitives
 
-Every drawable object inside RetroScope derives from Primitive.
+Pure geometric descriptions.
 
-Primitives are DATA ONLY.
-
-They never render themselves.
-
-The Renderer is responsible for converting primitives
-into pixels.
+Rendering appearance is defined by Material.
 """
 
 from __future__ import annotations
@@ -22,8 +17,6 @@ from typing import Tuple, List
 # ==========================================================
 # Common Types
 # ==========================================================
-
-Color = Tuple[int, int, int]
 
 Point2D = Tuple[float, float]
 
@@ -49,8 +42,6 @@ class Point(Primitive):
 
     position: Point2D
 
-    color: Color
-
     size: int = 1
 
 
@@ -62,8 +53,6 @@ class Point(Primitive):
 class Polyline(Primitive):
 
     points: List[Point2D]
-
-    color: Color
 
     width: int = 1
 
@@ -78,8 +67,6 @@ class Circle(Primitive):
     center: Point2D
 
     radius: float
-
-    color: Color
 
     width: int = 1
 
@@ -99,8 +86,6 @@ class Rectangle(Primitive):
 
     height: float
 
-    color: Color
-
     filled: bool = False
 
 
@@ -114,7 +99,5 @@ class Text(Primitive):
     text: str
 
     position: Point2D
-
-    color: Color
 
     size: int = 18

@@ -127,8 +127,6 @@ class WaveModule(Module):
 
                 points=points,
 
-                color=context.theme.trace_main,   # temporary
-
                 width=2,
 
             )

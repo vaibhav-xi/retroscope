@@ -52,8 +52,6 @@ class OverlayModule(Module):
 
                 position=(15, 12),
 
-                color=theme.text,
-
                 size=18,
 
             )
@@ -67,8 +65,6 @@ class OverlayModule(Module):
                 text="AUTO",
 
                 position=(80, 12),
-
-                color=theme.text,
 
                 size=18,
 
@@ -88,8 +84,6 @@ class OverlayModule(Module):
 
                 position=(config.WIDTH - 170, 12),
 
-                color=theme.text,
-
                 size=18,
 
             )
@@ -103,8 +97,6 @@ class OverlayModule(Module):
                 text="500 mV/div",
 
                 position=(config.WIDTH - 170, 36),
-
-                color=theme.text,
 
                 size=18,
 
@@ -123,8 +115,6 @@ class OverlayModule(Module):
                 text="RetroScope",
 
                 position=(15, config.HEIGHT - 30),
-
-                color=theme.accent,
 
                 size=16,
 

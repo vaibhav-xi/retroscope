@@ -42,8 +42,6 @@ class GridModule(Module):
 
     def emit(self, context, frame):
 
-        theme = context.theme
-
         width = config.WIDTH
         height = config.HEIGHT
 
@@ -73,12 +71,6 @@ class GridModule(Module):
 
             x = i * dx
 
-            color = (
-                theme.grid_center
-                if i == self.columns // 2
-                else theme.grid_major
-            )
-
             grid.add(
 
                 Polyline(
@@ -87,8 +79,6 @@ class GridModule(Module):
                         (x, 0),
                         (x, height),
                     ],
-
-                    color=color,
 
                     width=1,
 
@@ -104,12 +94,6 @@ class GridModule(Module):
 
             y = i * dy
 
-            color = (
-                theme.grid_center
-                if i == self.rows // 2
-                else theme.grid_major
-            )
-
             grid.add(
 
                 Polyline(
@@ -118,8 +102,6 @@ class GridModule(Module):
                         (0, y),
                         (width, y),
                     ],
-
-                    color=color,
 
                     width=1,
 
@@ -148,8 +130,6 @@ class GridModule(Module):
         #                     (x, height),
         #                 ],
 
-        #                 color=theme.grid_minor,
-
         #                 width=1,
 
         #             )
@@ -176,8 +156,6 @@ class GridModule(Module):
         #                     (0, y),
         #                     (width, y),
         #                 ],
-
-        #                 color=theme.grid_minor,
 
         #                 width=1,
 
