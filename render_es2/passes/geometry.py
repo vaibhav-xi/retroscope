@@ -21,19 +21,21 @@ class GeometryPass(RenderPass):
             # Upload only when needed.
             #
 
-            if renderable.is_dynamic:
+            if command.geometry is not None:
 
-                renderable.mesh.update(
-                    command.vertices
-                )
+                if renderable.is_dynamic:
 
-            elif renderable.is_dirty:
+                    renderable.mesh.update(
+                        command.geometry.vertices
+                    )
 
-                renderable.mesh.update(
-                    command.vertices
-                )
+                elif renderable.is_dirty:
 
-                renderable.is_dirty = False
+                    renderable.mesh.update(
+                        command.geometry.vertices
+                    )
+
+                    renderable.is_dirty = False
 
             #
             # Bind material.

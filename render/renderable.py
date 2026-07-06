@@ -21,6 +21,8 @@ from render.primitives import Primitive
 from render_es2.material import Material
 from render_es2.mesh import Mesh
 from typing import Optional
+from render.transform import Transform
+from render_es2.geometry import Geometry
 
 @dataclass
 class Renderable:
@@ -37,7 +39,11 @@ class Renderable:
         default_factory=Mesh
     )
     
-    cached_vertices: Optional[list[float]] = None
+    transform: Transform = field(
+        default_factory=Transform
+    )
+    
+    cached_geometry: Optional[Geometry] = None
 
     is_dynamic: bool = True
 

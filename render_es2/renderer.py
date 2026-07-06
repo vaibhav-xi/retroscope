@@ -4,6 +4,7 @@ from OpenGL.GL import *
 
 from render_es2.shader import Shader
 from render_es2.geometry_builder import GeometryBuilder
+from render_es2.render_graph import RenderGraph
 from render_es2.passes.geometry import GeometryPass
 
 class Renderer:
@@ -37,8 +38,14 @@ class Renderer:
         
         self.shader.use()
         
-        self.geometry_pass = GeometryPass(
-            self.shader,
+        self.render_graph = RenderGraph()
+
+        self.render_graph.add(
+
+            GeometryPass(
+                self.shader,
+            )
+
         )
         
     def render(self, frame):
@@ -47,6 +54,6 @@ class Renderer:
 
         packet = GeometryBuilder.build(frame)
 
-        self.geometry_pass.execute(
+        self.render_graph.execute(
             packet
         )

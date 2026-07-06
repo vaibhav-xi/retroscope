@@ -1,15 +1,15 @@
 from dataclasses import dataclass, field
 
 from render.renderable import Renderable
-
 from typing import Optional
+from render_es2.geometry import Geometry
 
 @dataclass
 class RenderCommand:
 
     renderable: Renderable
 
-    vertices: Optional[list[float]]
+    geometry: Optional[Geometry]
 
 
 @dataclass

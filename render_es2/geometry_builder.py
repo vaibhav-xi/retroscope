@@ -15,6 +15,7 @@ from render_es2.render_packet import (
     RenderCommand,
 )
 
+from render_es2.geometry import Geometry
 
 class GeometryBuilder:
 
@@ -51,11 +52,11 @@ class GeometryBuilder:
                     renderable.cached_vertices is not None
                 ):
 
-                    vertices = None
+                    geometry = None
 
                 else:
 
-                    vertices = []
+                    geometry = Geometry()
 
                     #
                     # Ask the registry which builder handles
@@ -71,7 +72,7 @@ class GeometryBuilder:
                         if builder is None:
                             continue
 
-                        vertices.extend(
+                        geometry.vertices.extend(
 
                             builder.build(
                                 primitive
@@ -86,19 +87,19 @@ class GeometryBuilder:
                     if (
                         not renderable.is_dynamic
                         and
-                        vertices
+                        geometry.vertices
                     ):
 
-                        renderable.cached_vertices = vertices
+                        renderable.cached_geometry = geometry
 
                 #
                 # Skip empty renderables.
                 #
 
                 if (
-                    vertices is not None
+                    geometry is not None
                     and
-                    not vertices
+                    not geometry.vertices
                 ):
                     continue
 
@@ -108,7 +109,7 @@ class GeometryBuilder:
 
                         renderable=renderable,
 
-                        vertices=vertices,
+                        geometry=geometry,
 
                     )
 
