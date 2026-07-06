@@ -26,13 +26,13 @@ class GeometryPass(RenderPass):
                 if renderable.is_dynamic:
 
                     renderable.mesh.update(
-                        command.geometry.vertices
+                        command.geometry.vertex_buffer
                     )
 
                 elif renderable.is_dirty:
 
                     renderable.mesh.update(
-                        command.geometry.vertices
+                        command.geometry.vertex_buffer
                     )
 
                     renderable.is_dirty = False

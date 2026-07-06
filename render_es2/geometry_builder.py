@@ -17,6 +17,8 @@ from render_es2.render_packet import (
 
 from render_es2.geometry import Geometry
 
+from render_es2.vertex_buffer import VertexBuffer
+
 class GeometryBuilder:
     
     profiler = None
@@ -59,6 +61,10 @@ class GeometryBuilder:
                 else:
 
                     geometry = Geometry()
+                    
+                    geometry.vertex_buffer = VertexBuffer.from_vertices(
+                        []
+                    )
 
                     #
                     # Ask the registry which builder handles
@@ -80,12 +86,12 @@ class GeometryBuilder:
                             "StrokeBuilder"
                         )
 
-                        geometry.vertices.extend(
+                        vertices = builder.build(
+                            primitive
+                        )
 
-                            builder.build(
-                                primitive
-                            )
-
+                        geometry.vertex_buffer = VertexBuffer.from_vertices(
+                            vertices
                         )
 
                         profiler.end(
@@ -99,7 +105,7 @@ class GeometryBuilder:
                     if (
                         not renderable.is_dynamic
                         and
-                        geometry.vertices
+                        geometry.vertex_buffer.vertices.size > 0
                     ):
 
                         renderable.cached_geometry = geometry
@@ -111,7 +117,7 @@ class GeometryBuilder:
                 if (
                     geometry is not None
                     and
-                    not geometry.vertices
+                    geometry.vertex_buffer.vertices.size == 0
                 ):
                     continue
 

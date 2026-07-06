@@ -6,16 +6,15 @@ Geometry
 Container for GPU-ready geometry.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
+
+from render_es2.vertex_buffer import VertexBuffer
+
 
 @dataclass
 class Geometry:
 
-    vertices: list[float] = field(
-        default_factory=list
-    )
+    vertex_buffer: Optional[VertexBuffer] = None
 
     indices: Optional[list[int]] = None
-
-    topology: int = 0

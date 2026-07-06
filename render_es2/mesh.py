@@ -1,9 +1,6 @@
 import ctypes
 
-import numpy as np
-
 from OpenGL.GL import *
-
 from render_es2.vao import VAO
 
 class Mesh:
@@ -18,15 +15,12 @@ class Mesh:
 
     # ---------------------------------------------------------
 
-    def update(self, vertices):
-        
-        if vertices is None:
+    def update(self, vertex_buffer):
+
+        if vertex_buffer is None:
             return
 
-        vertices = np.array(
-            vertices,
-            dtype=np.float32,
-        )
+        vertices = vertex_buffer.vertices
 
         self.count = len(vertices) // 2
 

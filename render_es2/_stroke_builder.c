@@ -19,10 +19,38 @@ build(PyObject *self, PyObject *args)
     }
 
     printf(
-        "points = %zd   width = %.1f\n",
+        "points = %zd  width = %.1f\n",
         PyList_Size(points),
         width
     );
+
+    if (PyList_Size(points) >= 2)
+    {
+        PyObject *p0 = PyList_GetItem(points, 0);
+        PyObject *p1 = PyList_GetItem(points, 1);
+
+        double x0 = PyFloat_AsDouble(
+            PyTuple_GetItem(p0, 0)
+        );
+
+        double y0 = PyFloat_AsDouble(
+            PyTuple_GetItem(p0, 1)
+        );
+
+        double x1 = PyFloat_AsDouble(
+            PyTuple_GetItem(p1, 0)
+        );
+
+        double y1 = PyFloat_AsDouble(
+            PyTuple_GetItem(p1, 1)
+        );
+
+        printf(
+            "(%.1f, %.1f) -> (%.1f, %.1f)\n",
+            x0, y0,
+            x1, y1
+        );
+    }
 
     PyObject *list = PyList_New(6);
 
