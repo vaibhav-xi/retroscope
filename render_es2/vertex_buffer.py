@@ -64,11 +64,6 @@ class VertexBuffer:
 
     def clear(self):
 
-        self.vertices = np.empty(
-            0,
-            dtype=np.float32,
-        )
-
         self.count = 0
         
         # ---------------------------------------------------------
@@ -132,34 +127,57 @@ class VertexBuffer:
         
     # ---------------------------------------------------------
 
+    def ensure_capacity(
+        self,
+        additional,
+    ):
+
+        required = self.count + additional
+
+        if required <= self.vertices.size:
+            return
+
+        new_capacity = max(
+
+            required,
+
+            max(
+                1024,
+                self.vertices.size * 2,
+            ),
+
+        )
+
+        new_vertices = np.empty(
+
+            new_capacity,
+
+            dtype=np.float32,
+
+        )
+
+        if self.count:
+
+            new_vertices[:self.count] = \
+                self.vertices[:self.count]
+
+        self.vertices = new_vertices
+
+    # ---------------------------------------------------------
+
     def push(
         self,
         value,
     ):
 
-        if self.count >= self.vertices.size:
+        self.ensure_capacity(1)
 
-            new_capacity = max(
-                1024,
-                self.vertices.size * 2,
-            )
-
-            new_array = np.empty(
-                new_capacity,
-                dtype=np.float32,
-            )
-
-            if self.count:
-
-                new_array[:self.count] = \
-                    self.vertices[:self.count]
-
-            self.vertices = new_array
-
-        self.vertices[self.count] = value
+        self.vertices[
+            self.count
+        ] = value
 
         self.count += 1
-        
+
     # ---------------------------------------------------------
 
     def push2(
@@ -168,5 +186,14 @@ class VertexBuffer:
         y,
     ):
 
-        self.push(x)
-        self.push(y)
+        self.ensure_capacity(2)
+
+        self.vertices[
+            self.count
+        ] = x
+
+        self.vertices[
+            self.count + 1
+        ] = y
+
+        self.count += 2
