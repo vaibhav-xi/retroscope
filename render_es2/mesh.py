@@ -6,8 +6,6 @@ from OpenGL.GL import *
 
 from render_es2.vao import VAO
 
-import time
-
 class Mesh:
 
     def __init__(self):
@@ -21,8 +19,6 @@ class Mesh:
     # ---------------------------------------------------------
 
     def update(self, vertices):
-        
-        start = time.perf_counter()
         
         if vertices is None:
             return
@@ -50,16 +46,10 @@ class Mesh:
             GL_DYNAMIC_DRAW,
 
         )
-        
-        elapsed = (time.perf_counter() - start) * 1000
-
-        print(f"Mesh.update    : {elapsed:.2f} ms")
 
     # ---------------------------------------------------------
 
     def draw(self, shader):
-        
-        start = time.perf_counter()
 
         if self.count == 0:
             return
@@ -98,7 +88,3 @@ class Mesh:
             self.count,
 
         )
-        
-        elapsed = (time.perf_counter() - start) * 1000
-
-        print(f"Mesh.draw      : {elapsed:.2f} ms")

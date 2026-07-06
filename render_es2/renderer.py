@@ -6,6 +6,7 @@ from render_es2.shader import Shader
 from render_es2.geometry_builder import GeometryBuilder
 from render_es2.render_graph import RenderGraph
 from render_es2.passes.geometry import GeometryPass
+from render_es2.profiler import Profiler
 
 class Renderer:
 
@@ -38,6 +39,8 @@ class Renderer:
         
         self.shader.use()
         
+        self.profiler = Profiler()
+        
         self.render_graph = RenderGraph()
 
         self.render_graph.add(
@@ -51,9 +54,39 @@ class Renderer:
     def render(self, frame):
 
         glClear(GL_COLOR_BUFFER_BIT)
+        
+        self.profiler.samples.clear()
 
-        packet = GeometryBuilder.build(frame)
+        #
+        # Build geometry.
+        #
+
+        self.profiler.begin(
+            "GeometryBuilder"
+        )
+
+        packet = GeometryBuilder.build(
+            frame
+        )
+
+        self.profiler.end(
+            "GeometryBuilder"
+        )
+
+        #
+        # Execute render passes.
+        #
+
+        self.profiler.begin(
+            "RenderGraph"
+        )
 
         self.render_graph.execute(
             packet
         )
+
+        self.profiler.end(
+            "RenderGraph"
+        )
+
+        self.profiler.report()
