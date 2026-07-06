@@ -19,14 +19,15 @@ import math
 class StrokeBuilder:
 
     @staticmethod
-    def build(polyline: Polyline):
-
-        vertices = []
+    def build(
+        polyline: Polyline,
+        vertex_buffer,
+    ):
 
         points = polyline.points
 
         if len(points) < 2:
-            return vertices
+            return
 
         for i in range(len(points) - 1):
 
@@ -112,37 +113,43 @@ class StrokeBuilder:
             # Still emit the original GL_LINES geometry.
             #
 
-            vertices.extend([
+            #
+            # Triangle 1
+            #
 
-                #
-                # Triangle 1
-                #
-
+            vertex_buffer.push2(
                 StrokeBuilder._x(left1[0]),
                 StrokeBuilder._y(left1[1]),
+            )
 
+            vertex_buffer.push2(
                 StrokeBuilder._x(right1[0]),
                 StrokeBuilder._y(right1[1]),
+            )
 
+            vertex_buffer.push2(
                 StrokeBuilder._x(left2[0]),
                 StrokeBuilder._y(left2[1]),
+            )
 
-                #
-                # Triangle 2
-                #
+            #
+            # Triangle 2
+            #
 
+            vertex_buffer.push2(
                 StrokeBuilder._x(left2[0]),
                 StrokeBuilder._y(left2[1]),
+            )
 
+            vertex_buffer.push2(
                 StrokeBuilder._x(right1[0]),
                 StrokeBuilder._y(right1[1]),
+            )
 
+            vertex_buffer.push2(
                 StrokeBuilder._x(right2[0]),
                 StrokeBuilder._y(right2[1]),
-
-            ])
-
-        return vertices
+            )
 
     # ---------------------------------------------------------
 

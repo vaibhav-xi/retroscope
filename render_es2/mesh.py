@@ -20,9 +20,11 @@ class Mesh:
         if vertex_buffer is None:
             return
 
-        vertices = vertex_buffer.vertices
+        vertices = vertex_buffer.vertices[
+            :vertex_buffer.count
+        ]
 
-        self.count = len(vertices) // 2
+        self.count = vertex_buffer.count // 2
         
         # print(
         #     type(vertices),

@@ -61,16 +61,12 @@ class GeometryBuilder:
                 else:
 
                     geometry = Geometry()
-                    
-                    geometry.vertex_buffer = VertexBuffer.from_vertices(
-                        []
-                    )
-                    
-                    all_vertices = []
+
+                    geometry.vertex_buffer = VertexBuffer()
 
                     #
                     # Ask the registry which builder handles
-                    # this primitive.
+                    # each primitive.
                     #
 
                     for primitive in renderable.primitives:
@@ -88,19 +84,17 @@ class GeometryBuilder:
                             "StrokeBuilder"
                         )
 
-                        all_vertices.extend(
-                            builder.build(
-                                primitive
-                            )
+                        builder.build(
+
+                            primitive,
+
+                            geometry.vertex_buffer,
+
                         )
 
                         profiler.end(
                             "StrokeBuilder"
                         )
-                        
-                    geometry.vertex_buffer = VertexBuffer.from_vertices(
-                        all_vertices
-                    )
 
                     #
                     # Cache static geometry.
@@ -109,7 +103,7 @@ class GeometryBuilder:
                     if (
                         not renderable.is_dynamic
                         and
-                        geometry.vertex_buffer.vertices.size > 0
+                        geometry.vertex_buffer.count > 0
                     ):
 
                         renderable.cached_geometry = geometry
@@ -121,7 +115,7 @@ class GeometryBuilder:
                 if (
                     geometry is not None
                     and
-                    geometry.vertex_buffer.vertices.size == 0
+                    geometry.vertex_buffer.count == 0
                 ):
                     continue
 
