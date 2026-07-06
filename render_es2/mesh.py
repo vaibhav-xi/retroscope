@@ -23,6 +23,15 @@ class Mesh:
         vertices = vertex_buffer.vertices
 
         self.count = len(vertices) // 2
+        
+        # print(
+        #     type(vertices),
+        #     len(vertices),
+        # )
+        
+        # print(
+        #     vertices[:12]
+        # )
 
         glBindBuffer(
             GL_ARRAY_BUFFER,

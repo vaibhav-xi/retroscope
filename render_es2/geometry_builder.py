@@ -65,6 +65,8 @@ class GeometryBuilder:
                     geometry.vertex_buffer = VertexBuffer.from_vertices(
                         []
                     )
+                    
+                    all_vertices = []
 
                     #
                     # Ask the registry which builder handles
@@ -86,17 +88,19 @@ class GeometryBuilder:
                             "StrokeBuilder"
                         )
 
-                        vertices = builder.build(
-                            primitive
-                        )
-
-                        geometry.vertex_buffer = VertexBuffer.from_vertices(
-                            vertices
+                        all_vertices.extend(
+                            builder.build(
+                                primitive
+                            )
                         )
 
                         profiler.end(
                             "StrokeBuilder"
                         )
+                        
+                    geometry.vertex_buffer = VertexBuffer.from_vertices(
+                        all_vertices
+                    )
 
                     #
                     # Cache static geometry.
