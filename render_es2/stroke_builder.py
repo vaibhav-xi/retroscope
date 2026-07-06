@@ -3,157 +3,40 @@ RetroScope
 
 Stroke Builder
 
-Converts geometric primitives into GPU vertex data.
+Uses the native implementation when available.
 
-Initially this simply emits line endpoints.
-
-Later this will generate thick triangle geometry.
+Falls back to the Python implementation during development.
 """
 
-import config
+try:
 
-from render.primitives import Polyline
+    #
+    # Native implementation.
+    #
 
-import math
+    from ._stroke_builder import build
+
+except ImportError:
+
+    #
+    # Python fallback.
+    #
+
+    from .stroke_builder_python import StrokeBuilder as _PythonStrokeBuilder
+
+    def build(polyline):
+
+        return _PythonStrokeBuilder.build(
+            polyline
+        )
+
 
 class StrokeBuilder:
 
     @staticmethod
-    def build(polyline: Polyline):
+    def build(polyline):
 
-        vertices = []
-
-        points = polyline.points
-
-        if len(points) < 2:
-            return vertices
-
-        for i in range(len(points) - 1):
-
-            x1, y1 = points[i]
-            x2, y2 = points[i + 1]
-
-            #
-            # Segment direction.
-            #
-
-            dx = x2 - x1
-            dy = y2 - y1
-
-            length = math.hypot(
-                dx,
-                dy,
-            )
-
-            #
-            # Ignore zero-length segments.
-            #
-
-            if length == 0:
-                continue
-
-            #
-            # Unit direction.
-            #
-
-            ux = dx / length
-            uy = dy / length
-
-            #
-            # Unit perpendicular.
-            #
-
-            px = -uy
-            py = ux
-            
-            # if i == 0:
-            #     print(
-            #         f"dir=({ux:.3f}, {uy:.3f}) "
-            #         f"perp=({px:.3f}, {py:.3f})"
-            #     )
-            
-            #
-            # Half line width in screen pixels.
-            #
-
-            half_width = 2.0
-
-            #
-            # Four corners of the future stroke.
-            #
-
-            left1 = (
-                x1 + px * half_width,
-                y1 + py * half_width,
-            )
-
-            right1 = (
-                x1 - px * half_width,
-                y1 - py * half_width,
-            )
-
-            left2 = (
-                x2 + px * half_width,
-                y2 + py * half_width,
-            )
-
-            right2 = (
-                x2 - px * half_width,
-                y2 - py * half_width,
-            )
-            
-            # if i == 0:
-            #     print(
-            #         "L1", left1,
-            #         "R1", right1,
-            #     )
-
-            #
-            # Still emit the original GL_LINES geometry.
-            #
-
-            vertices.extend([
-
-                #
-                # Triangle 1
-                #
-
-                StrokeBuilder._x(left1[0]),
-                StrokeBuilder._y(left1[1]),
-
-                StrokeBuilder._x(right1[0]),
-                StrokeBuilder._y(right1[1]),
-
-                StrokeBuilder._x(left2[0]),
-                StrokeBuilder._y(left2[1]),
-
-                #
-                # Triangle 2
-                #
-
-                StrokeBuilder._x(left2[0]),
-                StrokeBuilder._y(left2[1]),
-
-                StrokeBuilder._x(right1[0]),
-                StrokeBuilder._y(right1[1]),
-
-                StrokeBuilder._x(right2[0]),
-                StrokeBuilder._y(right2[1]),
-
-            ])
-
-        return vertices
-
-    # ---------------------------------------------------------
-
-    @staticmethod
-    def _x(x):
-
-        return (2.0 * x / config.WIDTH) - 1.0
-
-    # ---------------------------------------------------------
-
-    @staticmethod
-    def _y(y):
-
-        return 1.0 - (2.0 * y / config.HEIGHT)
+        return build(
+            polyline.points,
+            2.0,
+        )

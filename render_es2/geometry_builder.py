@@ -51,7 +51,7 @@ class GeometryBuilder:
                     and
                     not renderable.is_dirty
                     and
-                    renderable.cached_vertices is not None
+                    renderable.cached_geometry is not None
                 ):
 
                     geometry = None
