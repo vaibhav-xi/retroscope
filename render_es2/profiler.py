@@ -24,7 +24,12 @@ class Profiler:
 
     def begin(self, name):
 
-        self.samples[name] = -perf_counter()
+        self.samples.setdefault(
+            name,
+            0.0,
+        )
+
+        self.samples[name] -= perf_counter()
 
     # ---------------------------------------------------------
 

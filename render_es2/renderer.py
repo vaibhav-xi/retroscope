@@ -64,6 +64,8 @@ class Renderer:
         self.profiler.begin(
             "GeometryBuilder"
         )
+        
+        GeometryBuilder.profiler = self.profiler
 
         packet = GeometryBuilder.build(
             frame

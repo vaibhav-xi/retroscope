@@ -18,6 +18,8 @@ from render_es2.render_packet import (
 from render_es2.geometry import Geometry
 
 class GeometryBuilder:
+    
+    profiler = None
 
     @staticmethod
     def build(frame):
@@ -72,12 +74,22 @@ class GeometryBuilder:
                         if builder is None:
                             continue
 
+                        profiler = GeometryBuilder.profiler
+
+                        profiler.begin(
+                            "StrokeBuilder"
+                        )
+
                         geometry.vertices.extend(
 
                             builder.build(
                                 primitive
                             )
 
+                        )
+
+                        profiler.end(
+                            "StrokeBuilder"
                         )
 
                     #
