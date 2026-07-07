@@ -63,6 +63,8 @@ class GeometryBuilder:
                     geometry = Geometry()
 
                     geometry.vertex_buffer = VertexBuffer()
+                    
+                    # print(geometry.vertex_buffer)
 
                     #
                     # Ask the registry which builder handles

@@ -10,35 +10,29 @@ Builders write vertices here.
 Meshes upload them to the GPU.
 """
 
-from dataclasses import dataclass, field
-
 import numpy as np
 
-
-@dataclass
 class VertexBuffer:
 
-    #
-    # CPU vertex data.
-    #
+    def __init__(self):
 
-    vertices: np.ndarray = field(
+        self.vertices = np.empty(
+            0,
+            dtype=np.float32,
+        )
 
-        default_factory=lambda:
+        self.count = 0
 
-            np.empty(
-                0,
-                dtype=np.float32,
-            )
+    # ---------------------------------------------------------
+    
+    def __repr__(self):
 
-    )
-
-    #
-    # Number of valid floats.
-    #
-
-    count: int = 0
-
+        return (
+            f"<VertexBuffer "
+            f"id={id(self)} "
+            f"count={self.count}>"
+        )
+        
     # ---------------------------------------------------------
 
     @classmethod
@@ -47,28 +41,29 @@ class VertexBuffer:
         vertices,
     ):
 
-        array = np.asarray(
+        vb = cls()
+
+        vb.vertices = np.asarray(
             vertices,
             dtype=np.float32,
         )
 
-        return cls(
+        vb.count = len(vb.vertices)
 
-            vertices=array,
-
-            count=len(array),
-
-        )
+        return vb
 
     # ---------------------------------------------------------
 
     def clear(self):
 
         self.count = 0
-        
+
     # ---------------------------------------------------------
 
-    def reserve(self, capacity):
+    def reserve(
+        self,
+        capacity,
+    ):
 
         if self.vertices.size >= capacity:
             return
@@ -79,7 +74,8 @@ class VertexBuffer:
         )
 
         if self.count:
-            new_vertices[:self.count] = self.vertices[:self.count]
+            new_vertices[:self.count] = \
+                self.vertices[:self.count]
 
         self.vertices = new_vertices
 
@@ -124,7 +120,7 @@ class VertexBuffer:
         ] = vertices
 
         self.count = required
-        
+
     # ---------------------------------------------------------
 
     def ensure_capacity(
@@ -197,7 +193,7 @@ class VertexBuffer:
         ] = y
 
         self.count += 2
-        
+
     # ---------------------------------------------------------
 
     def data(self):
