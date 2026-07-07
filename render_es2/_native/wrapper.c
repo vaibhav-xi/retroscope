@@ -5,6 +5,8 @@
 
 #include "stroke.h"
 
+#include "vertex_buffer.h"
+
 static PyObject *
 build(
     PyObject *self,
@@ -49,6 +51,11 @@ build(
             0
         );
 
+    float *packed_points =
+        (float *)PyArray_DATA(
+            points_array
+        );
+
     if (point_count < 2)
     {
         Py_DECREF(points_array);
@@ -62,120 +69,37 @@ build(
     int max_floats =
         (int)(point_count - 1) * 12;
 
-    /*
-     * Get current count.
-     */
-
-    PyObject *count_obj =
-        PyObject_GetAttrString(
-            vertex_buffer,
-            "count"
-        );
-
-    if (count_obj == NULL)
-    {
-        return NULL;
-    }
-
-    int old_count =
-        (int)PyLong_AsLong(
-            count_obj
-        );
-
-    Py_DECREF(count_obj);
-
-    /*
-     * Make room for existing data + new data.
-     */
-
-    PyObject *reserve_result =
-        PyObject_CallMethod(
-            vertex_buffer,
-            "reserve",
-            "i",
-            old_count + max_floats
-        );
-
-    if (reserve_result == NULL)
-    {
-        return NULL;
-    }
-
-    Py_DECREF(reserve_result);
-
-    /*
-     * Get NumPy array AFTER reserve().
-     */
-
-    PyObject *array =
-        PyObject_CallMethod(
-            vertex_buffer,
-            "data",
-            NULL
-        );
-
-    if (array == NULL)
-    {
-        return NULL;
-    }
-
-    PyArrayObject *vertex_array =
-        (PyArrayObject *)array;
+    int old_count;
 
     float *vertices =
-        (float *)PyArray_DATA(vertex_array);
-
-    /*
-     * Append after existing data.
-     */
-
-    vertices += old_count;
-
-    float *packed_points =
-        (float *)PyArray_DATA(
-            points_array
-        );
-
-    /*
-     * Write into free space.
-     */
-
-    int written =
-        stroke_build(
-            packed_points,
-            (int)point_count,
-            (float)(width * 0.5f),
-            vertices
-        );
-
-    // printf(
-    //     "old=%d written=%d new=%d\n",
-    //     old_count,
-    //     written,
-    //     old_count + written
-    // );
-
-    /*
-     * Update count.
-     */
-
-    PyObject *result =
-        PyObject_CallMethod(
+        vertex_buffer_begin(
             vertex_buffer,
-            "set_count",
-            "i",
-            old_count + written
+            max_floats,
+            &old_count
         );
 
-    Py_DECREF(array);
-
-    if (result == NULL)
+    if (vertices == NULL)
     {
         Py_DECREF(points_array);
         return NULL;
     }
 
-    Py_DECREF(result);
+    int written =
+        stroke_build(
+            packed_points,
+            point_count,
+            (float)(width * 0.5f),
+            vertices
+        );
+
+    if (!vertex_buffer_finish(
+            vertex_buffer,
+            old_count + written
+        ))
+    {
+        Py_DECREF(points_array);
+        return NULL;
+    }
 
     Py_DECREF(points_array);
 

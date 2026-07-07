@@ -11,6 +11,7 @@ module = Extension(
         "wrapper.c",
         "stroke.c",
         "geometry.c",
+        "vertex_buffer.c",
     ],
 
     include_dirs=[
