@@ -88,11 +88,11 @@ int stroke_build(
 
     int written = (int)(dst - vertices);
 
-    printf(
-        "written=%d max=%d\n",
-        written,
-        (point_count - 1) * 12
-    );
+    // printf(
+    //     "written=%d max=%d\n",
+    //     written,
+    //     (point_count - 1) * 12
+    // );
 
     return written;
 }

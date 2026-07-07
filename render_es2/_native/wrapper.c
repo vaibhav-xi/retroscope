@@ -142,12 +142,12 @@ build(
             vertices
         );
 
-    printf(
-        "old=%d written=%d new=%d\n",
-        old_count,
-        written,
-        old_count + written
-    );
+    // printf(
+    //     "old=%d written=%d new=%d\n",
+    //     old_count,
+    //     written,
+    //     old_count + written
+    // );
 
     /*
      * Update count.

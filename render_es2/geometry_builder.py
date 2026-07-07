@@ -69,19 +69,19 @@ class GeometryBuilder:
                     # each primitive.
                     #
                     
-                    print(
-                        "renderable",
-                        len(renderable.primitives),
-                        renderable.material.color,
-                    )
+                    # print(
+                    #     "renderable",
+                    #     len(renderable.primitives),
+                    #     renderable.material.color,
+                    # )
 
                     for primitive in renderable.primitives:
                         
                         
-                        print(
-                            " primitive",
-                            primitive,
-                        )
+                        # print(
+                        #     " primitive",
+                        #     primitive,
+                        # )
 
                         builder = BuilderRegistry.builder_for(
                             primitive
@@ -104,10 +104,10 @@ class GeometryBuilder:
 
                         )
                         
-                        print(
-                            "after build",
-                            geometry.vertex_buffer.count
-                        )
+                        # print(
+                        #     "after build",
+                        #     geometry.vertex_buffer.count
+                        # )
 
                         profiler.end(
                             "StrokeBuilder"

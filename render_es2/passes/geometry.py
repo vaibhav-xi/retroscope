@@ -23,13 +23,13 @@ class GeometryPass(RenderPass):
 
             if command.geometry is not None:
                 
-                print(
-                    "mesh",
-                    id(renderable.mesh),
-                    "vb",
-                    id(command.geometry.vertex_buffer),
-                    command.geometry.vertex_buffer.count,
-                )
+                # print(
+                #     "mesh",
+                #     id(renderable.mesh),
+                #     "vb",
+                #     id(command.geometry.vertex_buffer),
+                #     command.geometry.vertex_buffer.count,
+                # )
 
                 if renderable.is_dynamic:
 
@@ -70,10 +70,10 @@ class GeometryPass(RenderPass):
             # Draw.
             #
             
-            print(
-                renderable.material.color,
-                renderable.mesh.count,
-            )
+            # print(
+            #     renderable.material.color,
+            #     renderable.mesh.count,
+            # )
 
             renderable.mesh.draw(
                 self.shader
