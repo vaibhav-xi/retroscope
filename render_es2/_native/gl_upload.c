@@ -2,11 +2,7 @@
 
 #include <Python.h>
 
-#ifdef __APPLE__
-#include <OpenGL/gl3.h>
-#else
-#include <GL/gl.h>
-#endif
+#include "gl_platform.h"
 
 #include "vertex_buffer_object.h"
 

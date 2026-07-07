@@ -3,10 +3,16 @@ from setuptools import setup
 
 import numpy
 
+import platform
+
+if platform.system() == "Linux":
+    libraries = [
+        "GLESv2",
+        "EGL",
+    ]
+
 module = Extension(
-
     "_native",
-
     sources=[
         "geometry.c",
         "stroke.c",
@@ -14,11 +20,10 @@ module = Extension(
         "wrapper.c",
         "gl_upload.c",
     ],
-
     include_dirs=[
         numpy.get_include(),
     ],
-
+    libraries=libraries,
 )
 
 setup(
