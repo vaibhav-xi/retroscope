@@ -66,22 +66,22 @@ class VertexBuffer:
 
         self.count = 0
         
-        # ---------------------------------------------------------
+    # ---------------------------------------------------------
 
-    def reserve(
-        self,
-        capacity,
-    ):
+    def reserve(self, capacity):
 
         if self.vertices.size >= capacity:
             return
 
-        self.vertices = np.empty(
+        new_vertices = np.empty(
             capacity,
             dtype=np.float32,
         )
 
-        self.count = 0
+        if self.count:
+            new_vertices[:self.count] = self.vertices[:self.count]
+
+        self.vertices = new_vertices
 
     # ---------------------------------------------------------
 
@@ -197,3 +197,18 @@ class VertexBuffer:
         ] = y
 
         self.count += 2
+        
+    # ---------------------------------------------------------
+
+    def data(self):
+
+        return self.vertices
+
+    # ---------------------------------------------------------
+
+    def set_count(
+        self,
+        count,
+    ):
+
+        self.count = count

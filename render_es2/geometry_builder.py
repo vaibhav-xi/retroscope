@@ -68,8 +68,20 @@ class GeometryBuilder:
                     # Ask the registry which builder handles
                     # each primitive.
                     #
+                    
+                    print(
+                        "renderable",
+                        len(renderable.primitives),
+                        renderable.material.color,
+                    )
 
                     for primitive in renderable.primitives:
+                        
+                        
+                        print(
+                            " primitive",
+                            primitive,
+                        )
 
                         builder = BuilderRegistry.builder_for(
                             primitive
@@ -90,6 +102,11 @@ class GeometryBuilder:
 
                             geometry.vertex_buffer,
 
+                        )
+                        
+                        print(
+                            "after build",
+                            geometry.vertex_buffer.count
                         )
 
                         profiler.end(

@@ -1,5 +1,19 @@
 #include "stroke.h"
 #include "geometry.h"
+#include <stdio.h>
+
+#define WIDTH 800.0f
+#define HEIGHT 480.0f
+
+static inline float ndc_x(float x)
+{
+    return (2.0f * x / WIDTH) - 1.0f;
+}
+
+static inline float ndc_y(float y)
+{
+    return 1.0f - (2.0f * y / HEIGHT);
+}
 
 static inline void push2(
     float **dst,
@@ -63,22 +77,22 @@ int stroke_build(
         float r2x = x2 - px * half_width;
         float r2y = y2 - py * half_width;
 
-        /*
-        * Triangle 1
-        */
+        push2(&dst, ndc_x(l1x), ndc_y(l1y));
+        push2(&dst, ndc_x(r1x), ndc_y(r1y));
+        push2(&dst, ndc_x(l2x), ndc_y(l2y));
 
-        push2(&dst, l1x, l1y);
-        push2(&dst, r1x, r1y);
-        push2(&dst, l2x, l2y);
-
-        /*
-        * Triangle 2
-        */
-
-        push2(&dst, l2x, l2y);
-        push2(&dst, r1x, r1y);
-        push2(&dst, r2x, r2y);
+        push2(&dst, ndc_x(l2x), ndc_y(l2y));
+        push2(&dst, ndc_x(r1x), ndc_y(r1y));
+        push2(&dst, ndc_x(r2x), ndc_y(r2y));
     }
 
-    return (int)(dst - vertices);
+    int written = (int)(dst - vertices);
+
+    printf(
+        "written=%d max=%d\n",
+        written,
+        (point_count - 1) * 12
+    );
+
+    return written;
 }

@@ -3,23 +3,44 @@ RetroScope
 
 Stroke Builder
 
-Dispatches to the active implementation.
-
-Currently the Python implementation is used while the
-native builder is being migrated to the new VertexBuffer API.
+Uses the native implementation when available.
 """
 
-from .stroke_builder_python import StrokeBuilder as PythonBuilder
+try:
 
+    from ._native import build as NativeBuild
 
-class StrokeBuilder:
+    class StrokeBuilder:
 
-    @staticmethod
-    def build(
-        polyline,
-        vertex_buffer,
-    ):
-        PythonBuilder.build(
+        @staticmethod
+        def build(
             polyline,
             vertex_buffer,
-        )
+        ):
+
+            NativeBuild(
+
+                polyline.points,
+
+                2.0,
+
+                vertex_buffer,
+
+            )
+
+except ImportError:
+
+    from .stroke_builder_python import StrokeBuilder as PythonBuilder
+
+    class StrokeBuilder:
+
+        @staticmethod
+        def build(
+            polyline,
+            vertex_buffer,
+        ):
+
+            PythonBuilder.build(
+                polyline,
+                vertex_buffer,
+            )

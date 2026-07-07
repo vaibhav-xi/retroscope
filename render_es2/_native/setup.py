@@ -1,18 +1,20 @@
 from setuptools import Extension
 from setuptools import setup
 
+import numpy
+
 module = Extension(
 
     "_native",
 
     sources=[
-
         "wrapper.c",
-
         "stroke.c",
-
         "geometry.c",
+    ],
 
+    include_dirs=[
+        numpy.get_include(),
     ],
 
 )

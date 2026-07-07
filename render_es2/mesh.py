@@ -23,8 +23,22 @@ class Mesh:
         vertices = vertex_buffer.vertices[
             :vertex_buffer.count
         ]
+        
+        print(
+            "count =", vertex_buffer.count,
+            "array =", len(vertex_buffer.vertices),
+        )
 
         self.count = vertex_buffer.count // 2
+        
+        print(
+            "Mesh.update",
+            id(self),
+            id(vertex_buffer),
+            vertex_buffer.count,
+        )
+        
+        print(vertices[:12])
         
         # print(
         #     type(vertices),
@@ -82,6 +96,14 @@ class Mesh:
 
             ctypes.c_void_p(0),
 
+        )
+        
+        print("draw", self.count)
+        
+        print(
+            "Mesh.draw",
+            id(self),
+            self.count,
         )
 
         glDrawArrays(

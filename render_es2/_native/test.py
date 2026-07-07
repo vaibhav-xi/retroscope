@@ -1,9 +1,13 @@
-from _native import build
+from . import build
+from render_es2.vertex_buffer import VertexBuffer
 
-verts = build(
+vb = VertexBuffer()
+
+build(
     [(0.0, 0.0), (100.0, 0.0)],
     2.0,
+    vb,
 )
 
-print(len(verts))
-print(verts)
+print(vb.count)
+print(vb.vertices[:vb.count])

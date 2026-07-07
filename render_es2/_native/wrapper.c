@@ -1,6 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
+#include <numpy/arrayobject.h>
 
 #include "stroke.h"
 
@@ -12,12 +13,14 @@ build(
 {
     PyObject *points;
     double width;
+    PyObject *vertex_buffer;
 
     if (!PyArg_ParseTuple(
             args,
-            "Od",
+            "OdO",
             &points,
-            &width))
+            &width,
+            &vertex_buffer))
     {
         return NULL;
     }
@@ -26,21 +29,95 @@ build(
 
     if (point_count < 2)
     {
-        return PyList_New(0);
+        Py_RETURN_NONE;
     }
 
     /*
-     * Pack Python tuples into a float array.
+     * Maximum floats this polyline can generate.
+     */
+
+    int max_floats =
+        (int)(point_count - 1) * 12;
+
+    /*
+     * Get current count.
+     */
+
+    PyObject *count_obj =
+        PyObject_GetAttrString(
+            vertex_buffer,
+            "count"
+        );
+
+    if (count_obj == NULL)
+    {
+        return NULL;
+    }
+
+    int old_count =
+        (int)PyLong_AsLong(
+            count_obj
+        );
+
+    Py_DECREF(count_obj);
+
+    /*
+     * Make room for existing data + new data.
+     */
+
+    PyObject *reserve_result =
+        PyObject_CallMethod(
+            vertex_buffer,
+            "reserve",
+            "i",
+            old_count + max_floats
+        );
+
+    if (reserve_result == NULL)
+    {
+        return NULL;
+    }
+
+    Py_DECREF(reserve_result);
+
+    /*
+     * Get NumPy array AFTER reserve().
+     */
+
+    PyObject *array =
+        PyObject_CallMethod(
+            vertex_buffer,
+            "data",
+            NULL
+        );
+
+    if (array == NULL)
+    {
+        return NULL;
+    }
+
+    PyArrayObject *vertex_array =
+        (PyArrayObject *)array;
+
+    float *vertices =
+        (float *)PyArray_DATA(vertex_array);
+
+    /*
+     * Append after existing data.
+     */
+
+    vertices += old_count;
+
+    /*
+     * Pack points.
      */
 
     float packed_points[point_count * 2];
 
     for (Py_ssize_t i = 0; i < point_count; ++i)
     {
-        PyObject *p = PyList_GetItem(
-            points,
-            i
-        );
+        PyObject *p =
+            PyList_GetItem(points, i);
 
         packed_points[i * 2 + 0] =
             (float)PyFloat_AsDouble(
@@ -54,53 +131,49 @@ build(
     }
 
     /*
-     * Maximum possible output:
-     * (point_count - 1) segments
-     * × 12 floats per segment
+     * Write into free space.
      */
 
-    int max_floats =
-        (int)(point_count - 1) * 12;
+    int written =
+        stroke_build(
+            packed_points,
+            (int)point_count,
+            (float)(width * 0.5f),
+            vertices
+        );
 
-    float vertices[max_floats];
-
-    int written = stroke_build(
-
-        packed_points,
-
-        (int)point_count,
-
-        (float)(width * 0.5),
-
-        vertices
-
+    printf(
+        "old=%d written=%d new=%d\n",
+        old_count,
+        written,
+        old_count + written
     );
 
     /*
-     * Convert back to Python list.
+     * Update count.
      */
 
-    PyObject *list = PyList_New(
-        written
-    );
-
-    for (int i = 0; i < written; ++i)
-    {
-        PyList_SET_ITEM(
-
-            list,
-
-            i,
-
-            PyFloat_FromDouble(
-                vertices[i]
-            )
-
+    PyObject *result =
+        PyObject_CallMethod(
+            vertex_buffer,
+            "set_count",
+            "i",
+            old_count + written
         );
+
+    Py_DECREF(array);
+
+    if (result == NULL)
+    {
+        return NULL;
     }
 
-    return list;
+    Py_DECREF(result);
+
+    Py_RETURN_NONE;
 }
+
+/* --------------------------------------------------------- */
 
 static PyMethodDef methods[] = {
 
@@ -113,6 +186,8 @@ static PyMethodDef methods[] = {
 
     {NULL, NULL, 0, NULL}
 };
+
+/* --------------------------------------------------------- */
 
 static struct PyModuleDef module = {
 
@@ -127,9 +202,13 @@ static struct PyModuleDef module = {
     methods,
 };
 
+/* --------------------------------------------------------- */
+
 PyMODINIT_FUNC
 PyInit__native(void)
 {
+    import_array();
+
     return PyModule_Create(
         &module
     );
