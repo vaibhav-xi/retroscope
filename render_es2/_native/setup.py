@@ -8,10 +8,11 @@ module = Extension(
     "_native",
 
     sources=[
-        "wrapper.c",
-        "stroke.c",
         "geometry.c",
-        "vertex_buffer.c",
+        "stroke.c",
+        "vertex_buffer_object.c",
+        "wrapper.c",
+        "gl_upload.c",
     ],
 
     include_dirs=[

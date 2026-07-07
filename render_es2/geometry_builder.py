@@ -17,7 +17,7 @@ from render_es2.render_packet import (
 
 from render_es2.geometry import Geometry
 
-from render_es2.vertex_buffer import VertexBuffer
+from render_es2._native import VertexBuffer
 
 class GeometryBuilder:
     

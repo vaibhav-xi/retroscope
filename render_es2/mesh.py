@@ -2,6 +2,7 @@ import ctypes
 
 from OpenGL.GL import *
 from render_es2.vao import VAO
+from render_es2._native import gl_upload
 
 class Mesh:
 
@@ -20,50 +21,11 @@ class Mesh:
         if vertex_buffer is None:
             return
 
-        vertices = vertex_buffer.vertices[
-            :vertex_buffer.count
-        ]
-        
-        # print(
-        #     "count =", vertex_buffer.count,
-        #     "array =", len(vertex_buffer.vertices),
-        # )
-
         self.count = vertex_buffer.count // 2
-        
-        # print(
-        #     "Mesh.update",
-        #     id(self),
-        #     id(vertex_buffer),
-        #     vertex_buffer.count,
-        # )
-        
-        # print(vertices[:12])
-        
-        # print(
-        #     type(vertices),
-        #     len(vertices),
-        # )
-        
-        # print(
-        #     vertices[:12]
-        # )
 
-        glBindBuffer(
-            GL_ARRAY_BUFFER,
+        gl_upload(
             self.vbo,
-        )
-
-        glBufferData(
-
-            GL_ARRAY_BUFFER,
-
-            vertices.nbytes,
-
-            vertices,
-
-            GL_DYNAMIC_DRAW,
-
+            vertex_buffer,
         )
 
     # ---------------------------------------------------------

@@ -5,7 +5,8 @@
 
 #include "stroke.h"
 
-#include "vertex_buffer.h"
+#include "vertex_buffer_object.h"
+#include "gl_upload.h"
 
 static PyObject *
 build(
@@ -15,19 +16,37 @@ build(
 {
     PyArrayObject *points_array;
     double width;
-    PyObject *vertex_buffer;
+
+    PyObject *vertex_buffer_obj;
+    VertexBufferObject *vertex_buffer;
 
     PyObject *points;
 
     if (!PyArg_ParseTuple(
-            args,
-            "OdO",
-            &points,
-            &width,
-            &vertex_buffer))
+        args,
+        "OdO",
+        &points,
+        &width,
+        &vertex_buffer_obj))
     {
         return NULL;
     }
+
+    if (!PyObject_TypeCheck(
+            vertex_buffer_obj,
+            &VertexBufferType))
+    {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "expected VertexBuffer"
+        );
+
+        return NULL;
+    }
+
+    vertex_buffer =
+        (VertexBufferObject *)
+            vertex_buffer_obj;
 
     points_array =
         (PyArrayObject *)PyArray_FROM_OTF(
@@ -69,20 +88,21 @@ build(
     int max_floats =
         (int)(point_count - 1) * 12;
 
-    int old_count;
+    int old_count =
+        vertex_buffer->count;
 
-    float *vertices =
-        vertex_buffer_begin(
+    if (!vertex_buffer_reserve(
             vertex_buffer,
-            max_floats,
-            &old_count
-        );
-
-    if (vertices == NULL)
+            old_count + max_floats))
     {
         Py_DECREF(points_array);
         return NULL;
     }
+
+    float *vertices =
+        vertex_buffer_data(
+            vertex_buffer
+        ) + old_count;
 
     int written =
         stroke_build(
@@ -92,14 +112,8 @@ build(
             vertices
         );
 
-    if (!vertex_buffer_finish(
-            vertex_buffer,
-            old_count + written
-        ))
-    {
-        Py_DECREF(points_array);
-        return NULL;
-    }
+    vertex_buffer->count =
+        old_count + written;
 
     Py_DECREF(points_array);
 
@@ -117,12 +131,19 @@ static PyMethodDef methods[] = {
         ""
     },
 
+    {
+        "gl_upload",
+        gl_upload,
+        METH_VARARGS,
+        ""
+    },
+
     {NULL, NULL, 0, NULL}
 };
 
 /* --------------------------------------------------------- */
 
-static struct PyModuleDef module = {
+static struct PyModuleDef moduledef = {
 
     PyModuleDef_HEAD_INIT,
 
@@ -142,7 +163,28 @@ PyInit__native(void)
 {
     import_array();
 
-    return PyModule_Create(
-        &module
+    if (PyType_Ready(&VertexBufferType) < 0)
+    {
+        return NULL;
+    }
+
+    PyObject *module =
+        PyModule_Create(
+            &moduledef
+        );
+
+    if (module == NULL)
+    {
+        return NULL;
+    }
+
+    Py_INCREF(&VertexBufferType);
+
+    PyModule_AddObject(
+        module,
+        "VertexBuffer",
+        (PyObject *)&VertexBufferType
     );
+
+    return module;
 }
