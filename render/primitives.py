@@ -1,17 +1,10 @@
-"""
-RetroScope
-
-Geometry Primitives
-
-Pure geometric descriptions.
-
-Rendering appearance is defined by Material.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple, List
+
+from typing import Tuple
+
+import numpy as np
 
 
 # ==========================================================
@@ -27,9 +20,6 @@ Point2D = Tuple[float, float]
 
 @dataclass
 class Primitive:
-    """
-    Base render primitive.
-    """
     pass
 
 
@@ -52,7 +42,19 @@ class Point(Primitive):
 @dataclass
 class Polyline(Primitive):
 
-    points: List[Point2D]
+    points: np.ndarray
+
+    def __post_init__(self):
+
+        self.points = np.ascontiguousarray(
+            self.points,
+            dtype=np.float32,
+        )
+
+        if self.points.ndim != 2 or self.points.shape[1] != 2:
+            raise ValueError(
+                "Polyline.points must have shape (N, 2)"
+            )
 
 
 # ==========================================================

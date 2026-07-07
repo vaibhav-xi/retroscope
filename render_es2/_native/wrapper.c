@@ -11,9 +11,11 @@ build(
     PyObject *args
 )
 {
-    PyObject *points;
+    PyArrayObject *points_array;
     double width;
     PyObject *vertex_buffer;
+
+    PyObject *points;
 
     if (!PyArg_ParseTuple(
             args,
@@ -25,10 +27,31 @@ build(
         return NULL;
     }
 
-    Py_ssize_t point_count = PyList_Size(points);
+    points_array =
+        (PyArrayObject *)PyArray_FROM_OTF(
+
+            points,
+
+            NPY_FLOAT32,
+
+            NPY_ARRAY_IN_ARRAY
+
+        );
+
+    if (points_array == NULL)
+    {
+        return NULL;
+    }
+
+    int point_count =
+        (int)PyArray_DIM(
+            points_array,
+            0
+        );
 
     if (point_count < 2)
     {
+        Py_DECREF(points_array);
         Py_RETURN_NONE;
     }
 
@@ -108,27 +131,10 @@ build(
 
     vertices += old_count;
 
-    /*
-     * Pack points.
-     */
-
-    float packed_points[point_count * 2];
-
-    for (Py_ssize_t i = 0; i < point_count; ++i)
-    {
-        PyObject *p =
-            PyList_GetItem(points, i);
-
-        packed_points[i * 2 + 0] =
-            (float)PyFloat_AsDouble(
-                PyTuple_GetItem(p, 0)
-            );
-
-        packed_points[i * 2 + 1] =
-            (float)PyFloat_AsDouble(
-                PyTuple_GetItem(p, 1)
-            );
-    }
+    float *packed_points =
+        (float *)PyArray_DATA(
+            points_array
+        );
 
     /*
      * Write into free space.
@@ -165,10 +171,13 @@ build(
 
     if (result == NULL)
     {
+        Py_DECREF(points_array);
         return NULL;
     }
 
     Py_DECREF(result);
+
+    Py_DECREF(points_array);
 
     Py_RETURN_NONE;
 }
