@@ -18,7 +18,6 @@ module = Extension(
         "stroke.c",
         "vertex_buffer_object.c",
         "wrapper.c",
-        "gl_upload.c",
         "mesh_object.c",
     ],
     include_dirs=[

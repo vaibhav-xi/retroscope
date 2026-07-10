@@ -6,7 +6,6 @@
 #include "stroke.h"
 
 #include "vertex_buffer_object.h"
-#include "gl_upload.h"
 
 #include "mesh_object.h"
 
@@ -129,13 +128,6 @@ static PyMethodDef methods[] = {
     {
         "build",
         build,
-        METH_VARARGS,
-        ""
-    },
-
-    {
-        "gl_upload",
-        gl_upload,
         METH_VARARGS,
         ""
     },
