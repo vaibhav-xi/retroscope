@@ -28,13 +28,8 @@ class Mesh:
         if vertex_buffer is None:
             return
 
-        self.native.vertex_count = (
-            vertex_buffer.count // 2
-        )
-
-        gl_upload(
-            self.vbo,
-            vertex_buffer,
+        self.native.upload(
+            vertex_buffer
         )
 
     # ---------------------------------------------------------

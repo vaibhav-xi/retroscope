@@ -6,6 +6,8 @@
 
 #include <structmember.h>
 
+#include "vertex_buffer_object.h"
+
 static int
 Mesh_init(
     MeshObject *self,
@@ -37,6 +39,55 @@ Mesh_create(
     }
 
     self->vertex_count = 0;
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+Mesh_upload(
+    MeshObject *self,
+    PyObject *args
+)
+{
+    PyObject *obj;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "O",
+            &obj))
+    {
+        return NULL;
+    }
+
+    if (!PyObject_TypeCheck(
+            obj,
+            &VertexBufferType))
+    {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "expected VertexBuffer"
+        );
+
+        return NULL;
+    }
+
+    VertexBufferObject *vb =
+        (VertexBufferObject *)obj;
+
+    self->vertex_count =
+        vb->count / 2;
+
+    glBindBuffer(
+        GL_ARRAY_BUFFER,
+        self->vbo
+    );
+
+    glBufferData(
+        GL_ARRAY_BUFFER,
+        vb->count * sizeof(float),
+        vb->vertices,
+        GL_DYNAMIC_DRAW
+    );
 
     Py_RETURN_NONE;
 }
@@ -106,6 +157,13 @@ static PyMethodDef Mesh_methods[] =
         "create",
         (PyCFunction)Mesh_create,
         METH_NOARGS,
+        NULL
+    },
+
+    {
+        "upload",
+        (PyCFunction)Mesh_upload,
+        METH_VARARGS,
         NULL
     },
 
