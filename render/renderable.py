@@ -79,3 +79,11 @@ class Renderable:
         )
 
         self.is_dirty = True
+        
+    # ---------------------------------------------------------
+
+    def clear(self):
+
+        self.primitives.clear()
+
+        self.is_dirty = True

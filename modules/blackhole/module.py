@@ -41,6 +41,11 @@ class BlackHole(Module):
         
         self.plasma = None
         
+        self.grid = None
+        self.disk = None
+        self.photon = None
+        self.horizon = None
+        
     def _translate(self, points, context):
 
         points = np.asarray(points, dtype=np.float32)
@@ -68,25 +73,11 @@ class BlackHole(Module):
 
         )
 
-    # ---------------------------------------------------------
-
-    def update(self, context):
-
-        self.rotation += self.disk_speed * context.delta_time
-        
-        self.plasma.update(
-            context.delta_time
-        )
-
-    # ---------------------------------------------------------
-
-    def emit(self, context, frame):
-
         #
-        # Grid
+        # Persistent renderables
         #
 
-        grid = Renderable(
+        self.grid = Renderable(
 
             material=Material(
 
@@ -98,6 +89,55 @@ class BlackHole(Module):
 
         )
 
+        self.grid.is_dynamic = False
+
+        self.photon = Renderable(
+
+            material=Material(
+
+                color=(0.7, 1.0, 0.8),
+
+                line_width=2.5,
+
+            ),
+
+        )
+
+        self.photon.is_dynamic = False
+
+        self.horizon = Renderable(
+
+            material=Material(
+
+                color=(0.0, 0.0, 0.0),
+
+                line_width=3.0,
+
+            ),
+
+        )
+
+        self.horizon.is_dynamic = False
+
+        self.disk = Renderable(
+
+            material=Material(
+
+                color=(0.0, 1.0, 0.4),
+
+                line_width=2.0,
+
+            ),
+
+        )
+
+        self.disk.is_dynamic = True
+        
+        
+        #
+        # Grid (static)
+        #
+
         for line in build_lensing_grid(
 
             extent=self.grid_extent,
@@ -108,7 +148,7 @@ class BlackHole(Module):
 
         ):
 
-            grid.add(
+            self.grid.add(
 
                 Polyline(
 
@@ -121,125 +161,12 @@ class BlackHole(Module):
 
             )
 
-        frame.add_renderable(
-
-            grid,
-
-            Layer.BACKGROUND,
-
-        )
-
-        #
-        # Accretion Disk
-        #
-
-        disk = Renderable(
-
-            material=Material(
-
-                color=(0.0, 1.0, 0.4),
-
-                line_width=2.0,
-
-            ),
-
-        )
-
-        for spiral in build_accretion_disk(
-
-            inner_radius=self.disk_inner,
-
-            outer_radius=self.disk_outer,
-
-            arms=6,
-
-            turns=2.5,
-
-            rotation=self.rotation,
-
-        ):
-
-            disk.add(
-
-                Polyline(
-
-                    points=self._translate(
-
-                        spiral,
-
-                        context,
-
-                    )
-
-                )
-
-            )
-
-        frame.add_renderable(
-
-            disk,
-
-            Layer.MAIN,
-
-        )
+        self.grid.is_dirty = True
+        
         
         #
-        # Plasma
+        # Photon Rings (static)
         #
-
-        plasma = Renderable(
-
-            material=Material(
-
-                color=(0.9, 1.0, 0.9),
-
-                line_width=1.0,
-
-            ),
-
-        )
-
-        for streak in self.plasma.streamlines():
-
-            plasma.add(
-
-                Polyline(
-
-                    points=self._translate(
-
-                        streak,
-
-                        context,
-
-                    )
-
-                )
-
-            )
-
-        frame.add_renderable(
-
-            plasma,
-
-            Layer.MAIN,
-
-        )
-
-        #
-        # Photon Rings
-        #
-
-        photon = Renderable(
-
-            material=Material(
-
-                color=(0.7, 1.0, 0.8),
-
-                line_width=2.5,
-
-            ),
-
-        )
 
         for ring in build_photon_rings(
 
@@ -251,47 +178,26 @@ class BlackHole(Module):
 
         ):
 
-            photon.add(
+            self.photon.add(
 
                 Polyline(
 
                     points=self._translate(
-
                         ring,
-
                         context,
-
                     )
 
                 )
 
             )
 
-        frame.add_renderable(
-
-            photon,
-
-            Layer.OVERLAY,
-
-        )
-
+        self.photon.is_dirty = True
+        
         #
-        # Event Horizon
+        # Event Horizon (static)
         #
 
-        horizon = Renderable(
-
-            material=Material(
-
-                color=(0.0, 0.0, 0.0),
-
-                line_width=3.0,
-
-            ),
-
-        )
-
-        horizon.add(
+        self.horizon.add(
 
             Polyline(
 
@@ -311,10 +217,107 @@ class BlackHole(Module):
 
         )
 
+        self.horizon.is_dirty = True
+
+    # ---------------------------------------------------------
+
+    def update(self, context):
+
+        self.rotation += self.disk_speed * context.delta_time
+        
+        self.plasma.update(
+            context.delta_time
+        )
+
+    # ---------------------------------------------------------
+
+    def emit(self, context, frame):
+
+        #
+        # Update dynamic disk
+        #
+
+        self.disk.clear()
+
+        for spiral in build_accretion_disk(
+
+            inner_radius=self.disk_inner,
+            outer_radius=self.disk_outer,
+            arms=6,
+            turns=2.5,
+            rotation=self.rotation,
+
+        ):
+
+            self.disk.add(
+
+                Polyline(
+
+                    points=self._translate(
+                        spiral,
+                        context,
+                    )
+
+                )
+
+            )
+
+        #
+        # Plasma
+        #
+
+        plasma = Renderable(
+
+            material=Material(
+
+                color=(0.9, 1.0, 0.9),
+                line_width=1.0,
+
+            )
+
+        )
+
+        for streak in self.plasma.streamlines():
+
+            plasma.add(
+
+                Polyline(
+
+                    points=self._translate(
+                        streak,
+                        context,
+                    )
+
+                )
+
+            )
+
+        #
+        # Submit renderables
+        #
+
         frame.add_renderable(
+            self.grid,
+            Layer.BACKGROUND,
+        )
 
-            horizon,
+        frame.add_renderable(
+            self.disk,
+            Layer.MAIN,
+        )
 
+        frame.add_renderable(
+            plasma,
+            Layer.MAIN,
+        )
+
+        frame.add_renderable(
+            self.photon,
+            Layer.OVERLAY,
+        )
+
+        frame.add_renderable(
+            self.horizon,
             Layer.OVERLAY,
         )
 
