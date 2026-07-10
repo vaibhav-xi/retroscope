@@ -38,8 +38,8 @@ def callback(indata, frames, time_info, status):
 
     global level
 
-    if status:
-        print(status)
+    # Ignore occasional status messages so the
+    # terminal stays on one line.
 
     samples = indata[:, 0]
 
@@ -47,12 +47,20 @@ def callback(indata, frames, time_info, status):
         np.mean(samples * samples)
     )
 
-    level = rms
+    # Smooth the meter slightly.
+    level = (
+        level * 0.8
+        + rms * 0.2
+    )
 
 
 #
 # Capture.
 #
+
+WIDTH = 60
+
+peak = 0.0
 
 with sd.InputStream(
 
@@ -68,15 +76,39 @@ with sd.InputStream(
 
     while True:
 
-        bars = int(level * 120)
+        meter = min(
+            level * 200,
+            1.0
+        )
+
+        peak = max(
+            peak * 0.97,
+            meter
+        )
+
+        bar = [" "] * WIDTH
+
+        for i in range(
+            int(meter * WIDTH)
+        ):
+            bar[i] = "█"
+
+        peak_pos = min(
+            int(peak * WIDTH),
+            WIDTH - 1
+        )
+
+        bar[peak_pos] = "│"
 
         print(
-            "\r"
-            + "█" * bars
-            + " " * (120 - bars)
-            + f" {level:.4f}",
+            "\r["
+            + "".join(bar)
+            + "] "
+            + f"{level:.4f}",
             end="",
             flush=True,
         )
 
         time.sleep(0.03)
+
+print()
