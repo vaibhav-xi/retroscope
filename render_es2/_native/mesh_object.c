@@ -1,92 +1,3 @@
-// #define PY_SSIZE_T_CLEAN
-
-// #include <Python.h>
-
-// #include "mesh_object.h"
-// #include "gl_platform.h"
-
-// static int
-// Mesh_init(
-//     MeshObject *self,
-//     PyObject *args,
-//     PyObject *kwds
-// )
-// {
-//     printf("Mesh_init\n");
-//     fflush(stdout);
-
-//     self->vbo = 0;
-//     self->vertex_count = 0;
-
-//     return 0;
-// }
-
-// static PyObject *
-// Mesh_create(
-//     MeshObject *self,
-//     PyObject *Py_UNUSED(ignored)
-// )
-// {
-//     if (self->vbo == 0)
-//     {
-//         glGenBuffers(
-//             1,
-//             &self->vbo
-//         );
-//     }
-
-//     Py_RETURN_NONE;
-// }
-
-// static PyMethodDef Mesh_methods[] =
-// {
-//     {
-//         "create",
-//         (PyCFunction)Mesh_create,
-//         METH_NOARGS,
-//         NULL
-//     },
-
-//     {NULL}
-// };
-
-// static void
-// Mesh_dealloc(
-//     MeshObject *self
-// )
-// {
-//     printf("Mesh_dealloc\n");
-//     fflush(stdout);
-
-//     Py_TYPE(self)->tp_free(
-//         (PyObject *)self
-//     );
-// }
-
-// PyTypeObject MeshType =
-// {
-//     PyVarObject_HEAD_INIT(NULL,0)
-
-//     .tp_name = "_native.Mesh",
-
-//     .tp_basicsize =
-//         sizeof(MeshObject),
-
-//     .tp_flags =
-//         Py_TPFLAGS_DEFAULT,
-
-//     .tp_new =
-//         PyType_GenericNew,
-
-//     .tp_init =
-//         (initproc)Mesh_init,
-
-//     .tp_dealloc =
-//         (destructor)Mesh_dealloc,
-
-//     .tp_methods = Mesh_methods,
-// };
-
 #define PY_SSIZE_T_CLEAN
 
 #include <Python.h>
@@ -142,6 +53,53 @@ Mesh_test(
     Py_RETURN_NONE;
 }
 
+static PyObject *
+Mesh_draw(
+    MeshObject *self,
+    PyObject *Py_UNUSED(ignored)
+)
+{
+    if (self->vertex_count == 0)
+    {
+        Py_RETURN_NONE;
+    }
+
+    glBindBuffer(
+        GL_ARRAY_BUFFER,
+        self->vbo
+    );
+
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(
+
+        0,
+
+        2,
+
+        GL_FLOAT,
+
+        GL_FALSE,
+
+        0,
+
+        0
+
+    );
+
+    glDrawArrays(
+
+        GL_TRIANGLES,
+
+        0,
+
+        self->vertex_count
+
+    );
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef Mesh_methods[] =
 {
     {
@@ -150,6 +108,15 @@ static PyMethodDef Mesh_methods[] =
         METH_NOARGS,
         NULL
     },
+
+    {
+        "draw",
+        (PyCFunction)Mesh_draw,
+        METH_NOARGS,
+        NULL
+    },
+
+
     {
         "test",
         (PyCFunction)Mesh_test,
@@ -186,7 +153,7 @@ static PyMemberDef Mesh_members[] =
         "vertex_count",
         T_INT,
         offsetof(MeshObject, vertex_count),
-        READONLY,
+        0,
         NULL
     },
 

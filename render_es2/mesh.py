@@ -28,7 +28,9 @@ class Mesh:
         if vertex_buffer is None:
             return
 
-        self.count = vertex_buffer.count // 2
+        self.native.vertex_count = (
+            vertex_buffer.count // 2
+        )
 
         gl_upload(
             self.vbo,
@@ -38,49 +40,7 @@ class Mesh:
     # ---------------------------------------------------------
 
     def draw(self, shader):
-
-        if self.count == 0:
-            return
-
+        
         self.vao.bind()
 
-        glBindBuffer(
-            GL_ARRAY_BUFFER,
-            self.vbo,
-        )
-
-        glEnableVertexAttribArray(0)
-
-        glVertexAttribPointer(
-
-            0,
-
-            2,
-
-            GL_FLOAT,
-
-            GL_FALSE,
-
-            0,
-
-            ctypes.c_void_p(0),
-
-        )
-        
-        # print("draw", self.count)
-        
-        # print(
-        #     "Mesh.draw",
-        #     id(self),
-        #     self.count,
-        # )
-
-        glDrawArrays(
-
-            GL_TRIANGLES,
-
-            0,
-
-            self.count,
-
-        )
+        self.native.draw()
