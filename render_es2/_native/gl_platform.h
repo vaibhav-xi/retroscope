@@ -7,12 +7,9 @@
 #elif defined(__arm__) || defined(__aarch64__)
 
 #include <GLES2/gl2.h>
-#include <GLES2/gl2ext.h>
 
-/*
- * OpenGL ES 2.0 exposes VAOs through
- * GL_OES_vertex_array_object.
- */
+#define GL_GLEXT_PROTOTYPES
+#include <GLES2/gl2ext.h>
 
 #define glGenVertexArrays    glGenVertexArraysOES
 #define glBindVertexArray    glBindVertexArrayOES
