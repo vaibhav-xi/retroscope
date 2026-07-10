@@ -1,6 +1,8 @@
 from OpenGL.GL import *
 import platform
 
+from render_es2._native import Shader as NativeShader
+
 
 class Shader:
 
@@ -11,82 +13,28 @@ class Shader:
             vertex_src = self._desktop_vertex(vertex_src)
             fragment_src = self._desktop_fragment(fragment_src)
 
-        self.program = glCreateProgram()
+        self.native = NativeShader()
 
-        vs = self._compile(
-            GL_VERTEX_SHADER,
+        self.native.create(
             vertex_src,
-        )
-
-        fs = self._compile(
-            GL_FRAGMENT_SHADER,
             fragment_src,
-        )
-
-        glAttachShader(self.program, vs)
-        glAttachShader(self.program, fs)
-
-        glBindAttribLocation(
-            self.program,
-            0,
-            "a_position",
-        )
-
-        glLinkProgram(self.program)
-
-        if glGetProgramiv(
-            self.program,
-            GL_LINK_STATUS,
-        ) != GL_TRUE:
-
-            raise RuntimeError(
-                glGetProgramInfoLog(
-                    self.program
-                ).decode()
-            )
-            
-    # -------------------------------------------------
-
-    def set_color(self, color):
-
-        location = glGetUniformLocation(
-            self.program,
-            "u_color",
-        )
-
-        glUniform3f(
-            location,
-            color[0],
-            color[1],
-            color[2],
         )
 
     # -------------------------------------------------
 
     def use(self):
 
-        glUseProgram(self.program)
+        self.native.use()
 
     # -------------------------------------------------
 
-    def _compile(self, shader_type, source):
+    def set_color(self, color):
 
-        shader = glCreateShader(shader_type)
-
-        glShaderSource(shader, source)
-
-        glCompileShader(shader)
-
-        if glGetShaderiv(
-            shader,
-            GL_COMPILE_STATUS,
-        ) != GL_TRUE:
-
-            raise RuntimeError(
-                glGetShaderInfoLog(shader).decode()
-            )
-
-        return shader
+        self.native.set_color(
+            color[0],
+            color[1],
+            color[2],
+        )
 
     # -------------------------------------------------
 

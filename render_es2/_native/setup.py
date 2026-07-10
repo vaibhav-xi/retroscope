@@ -19,6 +19,7 @@ module = Extension(
         "vertex_buffer_object.c",
         "wrapper.c",
         "mesh_object.c",
+        "shader_object.c",
     ],
     include_dirs=[
         numpy.get_include(),

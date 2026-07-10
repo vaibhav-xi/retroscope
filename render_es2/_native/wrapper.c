@@ -9,6 +9,8 @@
 
 #include "mesh_object.h"
 
+#include "shader_object.h"
+
 static PyObject *
 build(
     PyObject *self,
@@ -169,12 +171,23 @@ PyInit__native(void)
     if (PyType_Ready(&VertexBufferType) < 0)
         return NULL;
 
+    if (PyType_Ready(&ShaderType) < 0)
+        return NULL;
+
     Py_INCREF(&MeshType);
 
     PyModule_AddObject(
         module,
         "Mesh",
         (PyObject *)&MeshType
+    );
+
+    Py_INCREF(&ShaderType);
+
+    PyModule_AddObject(
+        module,
+        "Shader",
+        (PyObject *)&ShaderType
     );
 
     Py_INCREF(&VertexBufferType);
