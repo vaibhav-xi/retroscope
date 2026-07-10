@@ -11,6 +11,8 @@ typedef struct
 {
     PyObject_HEAD
 
+    GLuint vao;
+
     GLuint vbo;
 
     int vertex_count;

@@ -18,7 +18,9 @@ Mesh_init(
     // printf("Mesh_init\n");
     // fflush(stdout);
 
+    self->vao = 0;
     self->vbo = 0;
+
     self->vertex_count = 0;
 
     return 0;
@@ -30,6 +32,14 @@ Mesh_create(
     PyObject *Py_UNUSED(ignored)
 )
 {
+    if (self->vao == 0)
+    {
+        glGenVertexArrays(
+            1,
+            &self->vao
+        );
+    }
+
     if (self->vbo == 0)
     {
         glGenBuffers(
@@ -115,12 +125,18 @@ Mesh_draw(
         Py_RETURN_NONE;
     }
 
+    glBindVertexArray(
+        self->vao
+    );
+
     glBindBuffer(
         GL_ARRAY_BUFFER,
         self->vbo
     );
 
-    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(
+        0
+    );
 
     glVertexAttribPointer(
 
@@ -189,8 +205,21 @@ Mesh_dealloc(
     MeshObject *self
 )
 {
-    // printf("Mesh_dealloc\n");
-    // fflush(stdout);
+    if (self->vbo)
+    {
+        glDeleteBuffers(
+            1,
+            &self->vbo
+        );
+    }
+
+    if (self->vao)
+    {
+        glDeleteVertexArrays(
+            1,
+            &self->vao
+        );
+    }
 
     Py_TYPE(self)->tp_free(
         (PyObject *)self

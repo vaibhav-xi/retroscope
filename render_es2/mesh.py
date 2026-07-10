@@ -1,7 +1,6 @@
 import ctypes
 
 from OpenGL.GL import *
-from render_es2.vao import VAO
 from render_es2._native import (
     Mesh as NativeMesh,
 )
@@ -9,8 +8,6 @@ from render_es2._native import (
 class Mesh:
 
     def __init__(self):
-
-        self.vao = VAO()
 
         self.native = NativeMesh()
 
@@ -34,7 +31,5 @@ class Mesh:
     # ---------------------------------------------------------
 
     def draw(self, shader):
-        
-        self.vao.bind()
 
         self.native.draw()
