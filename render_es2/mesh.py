@@ -2,7 +2,10 @@ import ctypes
 
 from OpenGL.GL import *
 from render_es2.vao import VAO
-from render_es2._native import gl_upload
+from render_es2._native import (
+    Mesh as NativeMesh,
+    gl_upload,
+)
 
 class Mesh:
 
@@ -10,7 +13,11 @@ class Mesh:
 
         self.vao = VAO()
 
-        self.vbo = glGenBuffers(1)
+        self.native = NativeMesh()
+
+        self.native.create()
+
+        self.vbo = self.native.vbo
 
         self.count = 0
 

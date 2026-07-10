@@ -1,9 +1,9 @@
-from setuptools import Extension
-from setuptools import setup
+from setuptools import Extension, setup
 
 import numpy
-
 import platform
+
+libraries = []
 
 if platform.system() == "Linux":
     libraries = [
@@ -19,6 +19,7 @@ module = Extension(
         "vertex_buffer_object.c",
         "wrapper.c",
         "gl_upload.c",
+        "mesh_object.c",
     ],
     include_dirs=[
         numpy.get_include(),
@@ -27,11 +28,7 @@ module = Extension(
 )
 
 setup(
-
     name="_native",
-
     version="1.0",
-
     ext_modules=[module],
-
 )

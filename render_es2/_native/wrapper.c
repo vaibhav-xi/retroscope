@@ -8,6 +8,8 @@
 #include "vertex_buffer_object.h"
 #include "gl_upload.h"
 
+#include "mesh_object.h"
+
 static PyObject *
 build(
     PyObject *self,
@@ -163,20 +165,25 @@ PyInit__native(void)
 {
     import_array();
 
-    if (PyType_Ready(&VertexBufferType) < 0)
-    {
-        return NULL;
-    }
-
     PyObject *module =
-        PyModule_Create(
-            &moduledef
-        );
+        PyModule_Create(&moduledef);
 
     if (module == NULL)
-    {
         return NULL;
-    }
+
+    if (PyType_Ready(&MeshType) < 0)
+        return NULL;
+
+    if (PyType_Ready(&VertexBufferType) < 0)
+        return NULL;
+
+    Py_INCREF(&MeshType);
+
+    PyModule_AddObject(
+        module,
+        "Mesh",
+        (PyObject *)&MeshType
+    );
 
     Py_INCREF(&VertexBufferType);
 
