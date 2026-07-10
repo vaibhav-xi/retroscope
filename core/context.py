@@ -38,6 +38,13 @@ class Context:
     delta_time: float = 0.0
     elapsed_time: float = 0.0
     fps: float = 0.0
+    
+    # ---------------------------------------------------------
+    # Display
+    # ---------------------------------------------------------
+
+    width: int = 0
+    height: int = 0
 
     # ---------------------------------------------------------
     # Theme
@@ -113,3 +120,19 @@ class Context:
     ):
 
         self.fps = fps
+        
+    @property
+    def center(self):
+
+        return (
+            self.width * 0.5,
+            self.height * 0.5,
+        )
+
+    @property
+    def aspect_ratio(self):
+
+        if self.height == 0:
+            return 1.0
+
+        return self.width / self.height

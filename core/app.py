@@ -42,6 +42,9 @@ class App:
             config.HEIGHT,
             config.WINDOW_TITLE,
         )
+        
+        self.context.width = config.WIDTH
+        self.context.height = config.HEIGHT
 
         #
         # Renderer
@@ -56,17 +59,23 @@ class App:
         from modules.grid.grid import GridModule
         from modules.overlay.overlay import OverlayModule
         from modules.wave.module import WaveModule
+        
+        from modules.blackhole.module import BlackHole
 
-        self.manager.register(
-            GridModule()
-        )
+        # self.manager.register(
+        #     GridModule()
+        # )
 
-        self.manager.register(
-            OverlayModule()
-        )
+        # self.manager.register(
+        #     OverlayModule()
+        # )
 
+        # self.manager.register(
+        #     WaveModule()
+        # )
+        
         self.manager.register(
-            WaveModule()
+            BlackHole()
         )
 
         self.manager.initialize(
