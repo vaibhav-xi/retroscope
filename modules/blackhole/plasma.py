@@ -19,6 +19,7 @@ import math
 import random
 from typing import List
 
+from .projection import project_polyline
 
 # ----------------------------------------------------------------------
 # Plasma Particle
@@ -181,4 +182,4 @@ class PlasmaSystem:
 
                 )
 
-            yield points
+            yield project_polyline(points)
