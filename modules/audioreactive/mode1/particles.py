@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import numpy as np
@@ -30,6 +29,10 @@ class EmberField:
     # ---------------------------------------------------------
 
     def spawn(self, count: int):
+        """
+        Spawn up to `count` new embers at the core, recycling the
+        oldest slots first (ring buffer - no allocation).
+        """
 
         for _ in range(count):
 
@@ -65,6 +68,13 @@ class EmberField:
     # ---------------------------------------------------------
 
     def points(self):
+        """
+        Returns:
+            positions - (N, 2) array of currently alive embers,
+                        centered on the origin.
+            life      - (N,) array of remaining life, 1.0 (just
+                        spawned) down to 0.0 (about to die).
+        """
 
         active = self.alive
 

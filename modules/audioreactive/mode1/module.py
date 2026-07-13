@@ -32,11 +32,11 @@ def _normalize_color(color_255):
     return tuple(c / 255.0 for c in color_255)
 
 
-class AudioReactiveModule(Module):
+class AudioReactiveMode1(Module):
 
     def __init__(self):
 
-        super().__init__("Audio Reactive")
+        super().__init__("Audio Reactive - Mode 1")
 
         self.audio = AudioInput(
             device=config.AUDIO_DEVICE,
@@ -139,7 +139,7 @@ class AudioReactiveModule(Module):
         cx, cy = context.center
 
         spectrum = self.audio.spectrum
-        
+
         layers = (
             (self.rings[0], 210.0, 90.0, -0.6),
             (self.rings[1], 165.0, 70.0, 1.0),
@@ -163,10 +163,6 @@ class AudioReactiveModule(Module):
             renderable.add(
                 Polyline(points=points)
             )
-
-        #
-        # Pulsing core circle.
-        #
 
         self.core.clear()
 
@@ -213,10 +209,6 @@ class AudioReactiveModule(Module):
                     )
                 )
             )
-
-        #
-        # Submit renderables.
-        #
 
         frame.add_renderable(self.rings[0], Layer.BACKGROUND)
         frame.add_renderable(self.rings[1], Layer.MAIN)

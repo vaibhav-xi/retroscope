@@ -61,7 +61,8 @@ class App:
         from modules.wave.module import WaveModule
         
         from modules.blackhole.module import BlackHole
-        from modules.audioreactive.module import AudioReactiveModule
+        from modules.audioreactive.mode1.module import AudioReactiveMode1
+        from modules.audioreactive.mode2.module import AudioReactiveMode2
 
         # self.manager.register(
         #     GridModule()
@@ -79,8 +80,12 @@ class App:
         #     BlackHole()
         # )
 
+        # self.manager.register(
+        #     AudioReactiveMode1()
+        # )
+
         self.manager.register(
-            AudioReactiveModule()
+            AudioReactiveMode2()
         )
 
         self.manager.initialize(

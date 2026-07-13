@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import numpy as np
@@ -11,6 +10,7 @@ def spectrum_ring(
     rotation: float = 0.0,
     mirror: bool = True,
 ) -> np.ndarray:
+
     values = magnitudes
 
     if mirror:
@@ -26,7 +26,7 @@ def spectrum_ring(
     y = radius * np.sin(angles)
 
     points = np.column_stack([x, y]).astype(np.float32)
-    
+
     points = np.vstack([points, points[0]])
 
     return points
