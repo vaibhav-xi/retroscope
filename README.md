@@ -1,1 +1,1 @@
-Hoi
+pip install Flask moderngl glfw numpy pygame PyOpenGL PyOpenGL-accelerate sounddevice
