@@ -1,23 +1,3 @@
-"""
-RetroScope
-
-Audio Input
-
-Captures microphone audio and reduces it to a small set of
-smoothed, auto-normalized signals:
-
-    level     - overall loudness,        0.0 .. 1.0
-    bands     - N smoothed frequency bands (bass..treble)
-    spectrum  - a higher resolution spectrum curve, for shapes
-    beat      - True on strong bass transients
-
-This module knows nothing about rendering, modules or the engine.
-It only listens and analyses.
-
-If no microphone is available (missing hardware, missing
-`sounddevice`, permissions, etc.) it fails quietly and simply
-reports silence, so the rest of the engine keeps running.
-"""
 
 from __future__ import annotations
 
@@ -41,6 +21,11 @@ class AudioInput:
         block_size: int = 1024,
         band_count: int = 5,
         spectrum_resolution: int = 64,
+        input_gain: float = 4.0,
+        channel: int = 0,
+        channels: int = 1,
+        latency=None,
+        muted: bool = False,
     ):
 
         self.device = device
@@ -49,17 +34,15 @@ class AudioInput:
         self.band_count = band_count
         self.spectrum_resolution = spectrum_resolution
 
+        self.input_gain = max(0.0, float(input_gain))
+        self.channel = channel
+        self.channels = max(channels, channel + 1)
+        self.latency = latency
+        self.muted = bool(muted)
+
         self._stream = None
         self._window = np.hanning(block_size).astype(np.float32)
-
-        #
-        # Public, smoothed state.
-        #
-        # Modules only ever read these. They are written from the
-        # audio callback thread; plain numpy/float assignment is
-        # sufficiently atomic for our purposes here (no locks).
-        #
-
+        
         self.level: float = 0.0
         self.bands = np.zeros(band_count, dtype=np.float32)
         self.spectrum = np.zeros(spectrum_resolution, dtype=np.float32)
@@ -74,12 +57,6 @@ class AudioInput:
         self._spectrum_peaks = np.full(spectrum_resolution, 1e-4, dtype=np.float32)
         self._bass_average = 1e-4
 
-        #
-        # Log-spaced bin edges (bass gets far fewer, wider Hz
-        # per-bucket than treble, which matches how we actually
-        # perceive frequency).
-        #
-
         self._freqs = np.fft.rfftfreq(block_size, d=1.0 / samplerate)
 
         nyquist = samplerate * 0.5
@@ -88,6 +65,60 @@ class AudioInput:
         self._spectrum_edges = np.geomspace(40.0, nyquist, spectrum_resolution + 1)
 
         self._available = sd is not None
+
+    # ---------------------------------------------------------
+    # Gain / mute controls
+    # ---------------------------------------------------------
+
+    def set_gain(self, gain: float):
+        """Set the linear input gain multiplier (0.0 = silent, 1.0 = unity)."""
+
+        self.input_gain = max(0.0, float(gain))
+
+    # ---------------------------------------------------------
+
+    @property
+    def gain_db(self) -> float:
+        """Current input gain expressed in dB (-inf if fully muted/zeroed)."""
+
+        if self.input_gain <= 0.0:
+
+            return float("-inf")
+
+        return float(20.0 * np.log10(self.input_gain))
+
+    # ---------------------------------------------------------
+
+    def set_gain_db(self, db: float):
+        """Set the input gain from a dB value (0 dB = unity gain)."""
+
+        self.input_gain = float(10.0 ** (db / 20.0))
+
+    # ---------------------------------------------------------
+
+    def set_muted(self, muted: bool):
+
+        self.muted = bool(muted)
+
+    # ---------------------------------------------------------
+
+    def set_channel(self, channel: int):
+        """
+        Switch which captured channel is analyzed. Only valid for
+        channel indices already within `self.channels` - reopen
+        the stream (stop/start) after raising `self.channels` if
+        you need to select a channel beyond what's currently open.
+        """
+
+        if channel >= self.channels:
+
+            raise ValueError(
+                f"channel {channel} is outside the "
+                f"{self.channels}-channel stream currently open "
+                f"- restart with channels >= {channel + 1}"
+            )
+
+        self.channel = channel
 
     # ---------------------------------------------------------
 
@@ -106,9 +137,10 @@ class AudioInput:
 
             self._stream = sd.InputStream(
                 device=self.device,
-                channels=1,
+                channels=self.channels,
                 samplerate=self.samplerate,
                 blocksize=self.block_size,
+                latency=self.latency,
                 callback=self._callback,
             )
 
@@ -140,13 +172,16 @@ class AudioInput:
 
     def _callback(self, indata, frames, time_info, status):
 
-        samples = indata[:, 0].astype(np.float32)
+        samples = indata[:, self.channel].astype(np.float32)
 
-        #
-        # Overall loudness, auto-normalized against a slowly
-        # decaying peak so it adapts to any microphone / gain.
-        #
+        if self.muted:
 
+            samples = samples * 0.0
+
+        elif self.input_gain != 1.0:
+
+            samples = np.clip(samples * self.input_gain, -1.0, 1.0)
+            
         rms = float(
             np.sqrt(np.mean(samples * samples)) + 1e-9
         )
@@ -222,12 +257,7 @@ class AudioInput:
     # ---------------------------------------------------------
 
     def _bucket(self, magnitude, edges, peaks):
-        """
-        Average FFT magnitude into log-spaced buckets, then
-        normalize each bucket against its own slowly decaying
-        peak (auto-gain per band).
-        """
-
+        
         count = len(edges) - 1
 
         out = np.empty(count, dtype=np.float32)

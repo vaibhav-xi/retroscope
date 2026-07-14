@@ -1,49 +1,3 @@
-"""
-RetroScope
-
-Music Analyzer
-
-An extended audio input that understands more about *music*
-than a single loudness number.
-
-Builds on AudioInput's capture/FFT plumbing (window, FFT,
-log-spaced bucketing, auto-gain) but replaces the analysis step
-with a richer set of smoothed, auto-normalized signals:
-
-    bass, low_mid, mid, high_mid, high  - five named bands,
-                                           each independently
-                                           auto-normalized and
-                                           smoothed with its own
-                                           attack/release
-
-    lows / highs                        - convenience aggregates
-                                           of the above
-
-    centroid                             - spectral centroid,
-                                            0.0 (dark/bassy) ..
-                                            1.0 (bright/treble)
-
-    flux                                 - overall spectral
-                                            change this frame,
-                                            0.0 .. 1.0. A
-                                            general-purpose
-                                            "impact" signal,
-                                            independent of which
-                                            frequencies moved.
-
-    bass_hit / mid_hit / high_hit        - independent transient
-                                            detectors per range,
-                                            each comparing its
-                                            band against its own
-                                            short-term rolling
-                                            average
-
-Mode 1 keeps using the plain AudioInput and is completely
-unaffected by this file. Mode 2 uses this instead.
-
-This module knows nothing about rendering, modules or the
-engine. It only listens and analyses.
-"""
 
 from __future__ import annotations
 
@@ -72,6 +26,11 @@ class MusicAnalyzer(AudioInput):
         samplerate: int = 44100,
         block_size: int = 1024,
         spectrum_resolution: int = 64,
+        input_gain: float = 1.0,
+        channel: int = 0,
+        channels: int = 1,
+        latency=None,
+        muted: bool = False,
     ):
 
         super().__init__(
@@ -80,6 +39,11 @@ class MusicAnalyzer(AudioInput):
             block_size=block_size,
             band_count=5,
             spectrum_resolution=spectrum_resolution,
+            input_gain=input_gain,
+            channel=channel,
+            channels=channels,
+            latency=latency,
+            muted=muted,
         )
 
         self.bass: float = 0.0
