@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import math
-import platform
 
 import numpy as np
 
@@ -17,14 +16,11 @@ from render_es2.material import Material
 
 from inputs.music_analysis import MusicAnalyzer
 
-from .spectrum import spectrum_ring
-from .particles import EmberField
+from modules.audioreactive.native import EmberField, spectrum_ring
 
-_IS_DESKTOP = platform.system() == "Darwin"
-
-_SPECTRUM_RESOLUTION = 96 if _IS_DESKTOP else 48
-_EMBER_CAPACITY = 400 if _IS_DESKTOP else 120
-_CORE_SEGMENTS = 128 if _IS_DESKTOP else 64
+_SPECTRUM_RESOLUTION = 96
+_EMBER_CAPACITY = 400
+_CORE_SEGMENTS = 128
 
 
 def _normalize_color(color_255):
@@ -137,7 +133,7 @@ class AudioReactiveMode1(Module):
 
         if beat_trigger:
 
-            burst = 6 if _IS_DESKTOP else 3
+            burst = 6
 
             burst = max(1, round(burst * (0.5 + 0.5 * audio.attack)))
 
