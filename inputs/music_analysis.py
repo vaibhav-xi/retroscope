@@ -98,6 +98,14 @@ class MusicAnalyzer(AudioInput):
     _LOW_WAVE_MAX_HZ = 250.0
     _MID_WAVE_MAX_HZ = 2000.0
 
+    # --- vocal presence heuristic ---
+    _VOCAL_FORMANT_MIN_HZ = 300.0
+    _VOCAL_FORMANT_MAX_HZ = 3400.0
+    _VOCAL_PITCH_MIN_HZ = 120.0
+    _VOCAL_PITCH_MAX_HZ = 1100.0
+    _VOCAL_PRESENCE_FLOOR = 0.18
+    _VOCAL_ONSET = (0.12, 1.5, 0.05)
+
     def __init__(
         self,
         device=None,
@@ -215,6 +223,28 @@ class MusicAnalyzer(AudioInput):
         self.mid_waveform = np.zeros(block_size, dtype=np.float32)
         self.high_waveform = np.zeros(block_size, dtype=np.float32)
 
+        # --- vocal presence heuristic ---
+        self.vocal_presence: float = 0.0
+        self.vocal_activity: float = 0.0
+        self.vocal_hit: bool = False
+        self.vocal_brightness: float = 0.0
+
+        self.vocal_note_class: int = 0
+        self.vocal_note_midi: float = 0.0
+        self.vocal_note_confidence: float = 0.0
+
+        self.vocal_waveform = np.zeros(block_size, dtype=np.float32)
+
+        self._formant_flux_peak = 1e-4
+        self._vocal_activity_avg = 1e-4
+        self._prev_formant_magnitude = None
+
+        self._vocal_waveform_capacity = self._waveform_capacity
+        self._vocal_waveform_buffer = np.zeros(
+            self._vocal_waveform_capacity, dtype=np.float32
+        )
+        self._vocal_waveform_write = 0
+
         nyquist = samplerate * 0.5
 
         self._log_lo = np.log(40.0)
@@ -314,9 +344,81 @@ class MusicAnalyzer(AudioInput):
             self._freqs > self._MID_WAVE_MAX_HZ
         ).astype(np.float32)
 
+        self._vocal_formant_mask = (
+            (self._freqs >= self._VOCAL_FORMANT_MIN_HZ)
+            & (self._freqs <= self._VOCAL_FORMANT_MAX_HZ)
+        ).astype(np.float32)
+
+        self._vocal_pitch_mask = (
+            (self._freqs >= self._VOCAL_PITCH_MIN_HZ)
+            & (self._freqs <= self._VOCAL_PITCH_MAX_HZ)
+        ).astype(np.float32)
+
         self._chord_templates = self._build_chord_templates()
         self._chord_template_norms = (
             np.linalg.norm(self._chord_templates, axis=1) + 1e-9
+        )
+
+    # ---------------------------------------------------------
+    # Vocal-band waveform history
+    # ---------------------------------------------------------
+
+    def _record_vocal_waveform(self, block):
+
+        n = len(block)
+
+        capacity = self._vocal_waveform_capacity
+
+        if n >= capacity:
+
+            self._vocal_waveform_buffer[:] = block[-capacity:]
+            self._vocal_waveform_write = 0
+
+            return
+
+        end = self._vocal_waveform_write + n
+
+        if end <= capacity:
+
+            self._vocal_waveform_buffer[self._vocal_waveform_write:end] = block
+
+        else:
+
+            first = capacity - self._vocal_waveform_write
+
+            self._vocal_waveform_buffer[self._vocal_waveform_write:] = block[:first]
+
+            remaining = n - first
+
+            self._vocal_waveform_buffer[:remaining] = block[first:]
+
+        self._vocal_waveform_write = end % capacity
+
+    # ---------------------------------------------------------
+
+    def recent_vocal_waveform(self, sample_count: int) -> np.ndarray:
+
+        capacity = self._vocal_waveform_capacity
+
+        sample_count = max(0, min(sample_count, capacity))
+
+        if sample_count == 0:
+
+            return np.zeros(0, dtype=np.float32)
+
+        start = (self._vocal_waveform_write - sample_count) % capacity
+
+        if start + sample_count <= capacity:
+
+            return self._vocal_waveform_buffer[start:start + sample_count].copy()
+
+        first = capacity - start
+
+        return np.concatenate(
+            (
+                self._vocal_waveform_buffer[start:],
+                self._vocal_waveform_buffer[: sample_count - first],
+            )
         )
 
     # ---------------------------------------------------------
@@ -390,6 +492,12 @@ class MusicAnalyzer(AudioInput):
         self.high_waveform = np.fft.irfft(
             spectrum_complex * self._high_wave_mask, n=self.block_size
         ).astype(np.float32)
+
+        self.vocal_waveform = np.fft.irfft(
+            spectrum_complex * self._vocal_formant_mask, n=self.block_size
+        ).astype(np.float32)
+
+        self._record_vocal_waveform(self.vocal_waveform)
 
         total = float(magnitude.sum()) + 1e-9
 
@@ -531,6 +639,92 @@ class MusicAnalyzer(AudioInput):
         self.snare_hit, self._snare_avg = self._onset(
             self.snare_energy, self._snare_avg, *self._SNARE_ONSET
         )
+
+        formant_magnitude = harmonic_component * self._vocal_formant_mask
+
+        formant_energy = float(formant_magnitude.sum())
+
+        presence_raw = float(
+            np.clip(formant_energy / (harmonic_energy + 1e-9), 0.0, 1.0)
+        )
+
+        presence_attack = 0.3 if presence_raw > self.vocal_presence else 0.08
+
+        self.vocal_presence += (presence_raw - self.vocal_presence) * presence_attack
+
+        formant_total = formant_energy + 1e-9
+
+        if formant_energy > 1e-6:
+
+            formant_centroid_hz = float(
+                (self._freqs * formant_magnitude).sum()
+            ) / formant_total
+
+            formant_centroid_hz = max(
+                formant_centroid_hz, self._VOCAL_FORMANT_MIN_HZ
+            )
+
+            brightness = (
+                (np.log(formant_centroid_hz) - np.log(self._VOCAL_FORMANT_MIN_HZ))
+                / (
+                    np.log(self._VOCAL_FORMANT_MAX_HZ)
+                    - np.log(self._VOCAL_FORMANT_MIN_HZ)
+                )
+            )
+
+            brightness = float(np.clip(brightness, 0.0, 1.0))
+
+            self.vocal_brightness += (brightness - self.vocal_brightness) * 0.2
+
+        if self._prev_formant_magnitude is not None:
+
+            formant_rise = formant_magnitude - self._prev_formant_magnitude
+
+            formant_flux = float(np.maximum(formant_rise, 0.0).sum())
+
+        else:
+
+            formant_flux = 0.0
+
+        self._prev_formant_magnitude = formant_magnitude
+
+        self._formant_flux_peak = max(formant_flux, self._formant_flux_peak * 0.995)
+
+        formant_flux_norm = min(formant_flux / self._formant_flux_peak, 1.0)
+
+        vocal_activity_attack = 0.7 if formant_flux_norm > self.vocal_activity else 0.2
+
+        self.vocal_activity += (
+            formant_flux_norm - self.vocal_activity
+        ) * vocal_activity_attack
+
+        vocal_hit_raw, self._vocal_activity_avg = self._onset(
+            self.vocal_activity, self._vocal_activity_avg, *self._VOCAL_ONSET
+        )
+
+        self.vocal_hit = bool(
+            vocal_hit_raw and self.vocal_presence > self._VOCAL_PRESENCE_FLOOR
+        )
+
+        vocal_pitch = self._estimate_pitch(harmonic_component, self._vocal_pitch_mask)
+
+        if (
+            vocal_pitch is not None
+            and vocal_pitch[2] > self._PITCH_CONFIDENCE_FLOOR
+            and self.vocal_presence > self._VOCAL_PRESENCE_FLOOR
+        ):
+
+            pitch_class, midi, confidence = vocal_pitch
+
+            self.vocal_note_class = pitch_class
+            self.vocal_note_midi += (midi - self.vocal_note_midi) * 0.3
+            self.vocal_note_confidence += (
+                confidence - self.vocal_note_confidence
+            ) * 0.3
+
+        else:
+
+            self.vocal_note_confidence *= 0.9
 
         bass_pitch = self._estimate_pitch(
             harmonic_component, self._bass_pitch_mask
@@ -780,7 +974,7 @@ class MusicAnalyzer(AudioInput):
         confidence = float(np.clip(peak_value / (autocorr[0] + 1e-9), 0.0, 1.0))
 
         if confidence < self._TEMPO_MIN_CONFIDENCE:
-
+            
             self.beat_confidence *= 0.9
 
             return
@@ -817,7 +1011,7 @@ class MusicAnalyzer(AudioInput):
     # ---------------------------------------------------------
 
     def _advance_beat_phase(self):
-        
+
         if not self._beat_period_frames:
 
             self.beat_phase = 0.0
@@ -841,8 +1035,6 @@ class MusicAnalyzer(AudioInput):
 
             if distance < self._PHASE_LOCK_RANGE:
 
-                # Signed offset from the nearest predicted beat (0 or
-                # `period`), pulled toward zero rather than snapped.
                 offset = (
                     self._beat_phase_counter
                     if phase <= 0.5
@@ -865,7 +1057,7 @@ class MusicAnalyzer(AudioInput):
 
     @staticmethod
     def _build_chord_templates():
-
+        
         templates = np.zeros((24, 12), dtype=np.float32)
 
         for root in range(12):
@@ -932,7 +1124,7 @@ class MusicAnalyzer(AudioInput):
                 best_key = (tonic, False)
 
         key_confidence = float(np.clip(best_key_score / 6.5, 0.0, 1.0))
-        
+
         self.key_confidence += (key_confidence - self.key_confidence) * 0.02
 
         if key_confidence > self._KEY_CONFIDENCE_THRESHOLD:
