@@ -66,6 +66,16 @@ class AudioInput:
 
         self._available = sd is not None
 
+        self.waveform_history_seconds = 2.0
+
+        self._waveform_capacity = max(
+            block_size * 2,
+            int(self.waveform_history_seconds * samplerate),
+        )
+
+        self._waveform_buffer = np.zeros(self._waveform_capacity, dtype=np.float32)
+        self._waveform_write = 0
+
     # ---------------------------------------------------------
     # Gain / mute controls
     # ---------------------------------------------------------
@@ -103,12 +113,6 @@ class AudioInput:
     # ---------------------------------------------------------
 
     def set_channel(self, channel: int):
-        """
-        Switch which captured channel is analyzed. Only valid for
-        channel indices already within `self.channels` - reopen
-        the stream (stop/start) after raising `self.channels` if
-        you need to select a channel beyond what's currently open.
-        """
 
         if channel >= self.channels:
 
@@ -167,6 +171,68 @@ class AudioInput:
             self._stream = None
 
     # ---------------------------------------------------------
+    # Waveform ring buffer
+    # ---------------------------------------------------------
+
+    def _record_waveform(self, samples):
+
+        n = len(samples)
+
+        capacity = self._waveform_capacity
+
+        if n >= capacity:
+
+            self._waveform_buffer[:] = samples[-capacity:]
+            self._waveform_write = 0
+
+            return
+
+        end = self._waveform_write + n
+
+        if end <= capacity:
+
+            self._waveform_buffer[self._waveform_write:end] = samples
+
+        else:
+
+            first = capacity - self._waveform_write
+
+            self._waveform_buffer[self._waveform_write:] = samples[:first]
+
+            remaining = n - first
+
+            self._waveform_buffer[:remaining] = samples[first:]
+
+        self._waveform_write = end % capacity
+
+    # ---------------------------------------------------------
+
+    def recent_waveform(self, sample_count: int) -> np.ndarray:
+
+        capacity = self._waveform_capacity
+
+        sample_count = max(0, min(sample_count, capacity))
+
+        if sample_count == 0:
+
+            return np.zeros(0, dtype=np.float32)
+
+        start = (self._waveform_write - sample_count) % capacity
+
+        if start + sample_count <= capacity:
+
+            return self._waveform_buffer[start:start + sample_count].copy()
+
+        first = capacity - start
+
+        return np.concatenate(
+            (
+                self._waveform_buffer[start:],
+                self._waveform_buffer[: sample_count - first],
+            )
+        )
+
+    # ---------------------------------------------------------
     # Audio thread callback
     # ---------------------------------------------------------
 
@@ -181,7 +247,9 @@ class AudioInput:
         elif self.input_gain != 1.0:
 
             samples = np.clip(samples * self.input_gain, -1.0, 1.0)
-            
+
+        self._record_waveform(samples)
+
         rms = float(
             np.sqrt(np.mean(samples * samples)) + 1e-9
         )

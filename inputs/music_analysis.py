@@ -85,6 +85,19 @@ class MusicAnalyzer(AudioInput):
     # --- meter / bar tracking ---
     _BAR_BEATS = 4
 
+    # --- kick / snare separation ---
+    _KICK_MIN_HZ = 30.0
+    _KICK_MAX_HZ = 150.0
+    _SNARE_MIN_HZ = 150.0
+    _SNARE_MAX_HZ = 6000.0
+
+    _KICK_ONSET = (0.14, 1.6, 0.05)
+    _SNARE_ONSET = (0.14, 1.5, 0.06)
+
+    # --- band-limited waveform reconstruction ---
+    _LOW_WAVE_MAX_HZ = 250.0
+    _MID_WAVE_MAX_HZ = 2000.0
+
     def __init__(
         self,
         device=None,
@@ -186,6 +199,22 @@ class MusicAnalyzer(AudioInput):
         self._pending_chord = None
         self._pending_chord_count: int = 0
 
+        # --- kick / snare ---
+        self.kick_energy: float = 0.0
+        self.snare_energy: float = 0.0
+        self.kick_hit: bool = False
+        self.snare_hit: bool = False
+
+        self._kick_peak = 1e-4
+        self._snare_peak = 1e-4
+        self._kick_avg = 1e-4
+        self._snare_avg = 1e-4
+
+        # --- band-limited waveforms ---
+        self.low_waveform = np.zeros(block_size, dtype=np.float32)
+        self.mid_waveform = np.zeros(block_size, dtype=np.float32)
+        self.high_waveform = np.zeros(block_size, dtype=np.float32)
+
         nyquist = samplerate * 0.5
 
         self._log_lo = np.log(40.0)
@@ -242,11 +271,6 @@ class MusicAnalyzer(AudioInput):
         self._long_energy_peak = 1e-4
         self._section_state_low = True
 
-        #
-        # Chroma: map each FFT bin to a pitch class (0-11), ignoring
-        # sub-40Hz bins (too close to DC / rumble to be tonal).
-        #
-
         with np.errstate(divide="ignore"):
             midi = 69.0 + 12.0 * np.log2(np.maximum(self._freqs, 1e-6) / 440.0)
 
@@ -267,10 +291,28 @@ class MusicAnalyzer(AudioInput):
             & (self._freqs <= self._MELODY_PITCH_MAX_HZ)
         ).astype(np.float32)
 
-        #
-        # Chord templates: 12 major + 12 minor triads expressed as
-        # weighted chroma vectors.
-        #
+        self._kick_energy_mask = (
+            (self._freqs >= self._KICK_MIN_HZ)
+            & (self._freqs <= self._KICK_MAX_HZ)
+        ).astype(np.float32)
+
+        self._snare_energy_mask = (
+            (self._freqs >= self._SNARE_MIN_HZ)
+            & (self._freqs <= self._SNARE_MAX_HZ)
+        ).astype(np.float32)
+
+        self._low_wave_mask = (
+            self._freqs <= self._LOW_WAVE_MAX_HZ
+        ).astype(np.float32)
+
+        self._mid_wave_mask = (
+            (self._freqs > self._LOW_WAVE_MAX_HZ)
+            & (self._freqs <= self._MID_WAVE_MAX_HZ)
+        ).astype(np.float32)
+
+        self._high_wave_mask = (
+            self._freqs > self._MID_WAVE_MAX_HZ
+        ).astype(np.float32)
 
         self._chord_templates = self._build_chord_templates()
         self._chord_template_norms = (
@@ -284,6 +326,8 @@ class MusicAnalyzer(AudioInput):
     def _callback(self, indata, frames, time_info, status):
 
         samples = indata[:, 0].astype(np.float32)
+
+        self._record_waveform(samples)
 
         rms = float(
             np.sqrt(np.mean(samples * samples)) + 1e-9
@@ -302,7 +346,9 @@ class MusicAnalyzer(AudioInput):
 
         windowed = samples * self._window
 
-        magnitude = np.abs(np.fft.rfft(windowed))
+        spectrum_complex = np.fft.rfft(windowed)
+
+        magnitude = np.abs(spectrum_complex)
 
         new_bands = self._bucket(
             magnitude,
@@ -332,6 +378,18 @@ class MusicAnalyzer(AudioInput):
             attack=0.8,
             release=0.2,
         )
+
+        self.low_waveform = np.fft.irfft(
+            spectrum_complex * self._low_wave_mask, n=self.block_size
+        ).astype(np.float32)
+
+        self.mid_waveform = np.fft.irfft(
+            spectrum_complex * self._mid_wave_mask, n=self.block_size
+        ).astype(np.float32)
+
+        self.high_waveform = np.fft.irfft(
+            spectrum_complex * self._high_wave_mask, n=self.block_size
+        ).astype(np.float32)
 
         total = float(magnitude.sum()) + 1e-9
 
@@ -441,6 +499,38 @@ class MusicAnalyzer(AudioInput):
         )
 
         self.attack = self.percussive
+
+        kick_energy_raw = float(
+            (percussive_component * self._kick_energy_mask).sum()
+        )
+
+        snare_energy_raw = float(
+            (percussive_component * self._snare_energy_mask).sum()
+        )
+
+        self._kick_peak = max(kick_energy_raw, self._kick_peak * 0.995)
+
+        kick_norm = min(kick_energy_raw / self._kick_peak, 1.0)
+
+        kick_attack = 0.75 if kick_norm > self.kick_energy else 0.2
+
+        self.kick_energy += (kick_norm - self.kick_energy) * kick_attack
+
+        self._snare_peak = max(snare_energy_raw, self._snare_peak * 0.995)
+
+        snare_norm = min(snare_energy_raw / self._snare_peak, 1.0)
+
+        snare_attack = 0.75 if snare_norm > self.snare_energy else 0.2
+
+        self.snare_energy += (snare_norm - self.snare_energy) * snare_attack
+
+        self.kick_hit, self._kick_avg = self._onset(
+            self.kick_energy, self._kick_avg, *self._KICK_ONSET
+        )
+
+        self.snare_hit, self._snare_avg = self._onset(
+            self.snare_energy, self._snare_avg, *self._SNARE_ONSET
+        )
 
         bass_pitch = self._estimate_pitch(
             harmonic_component, self._bass_pitch_mask
@@ -555,7 +645,7 @@ class MusicAnalyzer(AudioInput):
         else:
 
             self.bar_phase = 0.0
-            
+
         short_rate = 1.0 / (self._SECTION_SHORT_SECONDS * self._tempo_frame_rate)
         long_rate = 1.0 / (self._SECTION_LONG_SECONDS * self._tempo_frame_rate)
 
@@ -727,7 +817,7 @@ class MusicAnalyzer(AudioInput):
     # ---------------------------------------------------------
 
     def _advance_beat_phase(self):
-
+        
         if not self._beat_period_frames:
 
             self.beat_phase = 0.0
@@ -842,7 +932,7 @@ class MusicAnalyzer(AudioInput):
                 best_key = (tonic, False)
 
         key_confidence = float(np.clip(best_key_score / 6.5, 0.0, 1.0))
-
+        
         self.key_confidence += (key_confidence - self.key_confidence) * 0.02
 
         if key_confidence > self._KEY_CONFIDENCE_THRESHOLD:
@@ -1032,6 +1122,10 @@ class MusicAnalyzer(AudioInput):
 
     @property
     def chord_tones(self):
+        """
+        (root, third, fifth) pitch classes of the currently detected
+        chord.
+        """
 
         third_interval = (
             self._CHORD_THIRD_MAJOR
