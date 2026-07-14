@@ -201,9 +201,23 @@ class AudioReactiveMode2(Module):
         self.mid_smooth += (audio.mid - self.mid_smooth) * 0.2
         self.high_smooth += (audio.high - self.high_smooth) * 0.2
 
-        if audio.bass_hit:
+        #
+        # A kick drum and a sustained bassline used to both just be
+        # "bass" here, so a held bass note re-triggered the tunnel
+        # shells the same as a drum hit. Trigger on the percussive
+        # attack instead - the actual drum-shaped transient - and
+        # once tempo is confidently locked, prefer the phase-locked
+        # beat pulse so the shells land on the beat grid rather than
+        # free-running off raw transients.
+        #
 
-            self.tunnel.spawn(strength=audio.bass)
+        beat_trigger = (
+            audio.on_beat if audio.beat_confidence > 0.3 else audio.attack_hit
+        )
+
+        if beat_trigger:
+
+            self.tunnel.spawn(strength=self.bass_smooth)
 
             self.orbit.spawn(
                 count=_ORBIT_SPAWN_PER_HIT,
@@ -214,8 +228,12 @@ class AudioReactiveMode2(Module):
 
         self.orbit.update(
             dt,
-            radius_target=90.0 + self.mid_smooth * 40.0,
-            speed_scale=1.0 + audio.high * 3.0,
+            radius_target=(
+                90.0
+                + self.mid_smooth * 40.0
+                + audio.section_energy * 30.0
+            ),
+            speed_scale=1.0 + audio.high * 3.0 + audio.energy_trend * 0.8,
         )
 
         if audio.high_hit:
@@ -227,8 +245,15 @@ class AudioReactiveMode2(Module):
                 max_length=90.0 + audio.high * 60.0,
             )
 
+        #
+        # A harmony/chord shift (harmonic_change) is a more musically
+        # grounded trigger for "something changed" than raw broadband
+        # flux, which fires on any strong transient regardless of
+        # whether it's tonal.
+        #
+
         if (
-            audio.flux > 0.6
+            audio.harmonic_change > 0.5
             and context.random.random() < dt * 4.0
         ):
 
@@ -280,7 +305,7 @@ class AudioReactiveMode2(Module):
             center=(cx, cy),
             layer_count=_KALEIDOSCOPE_LAYERS,
             base_radius=130.0,
-            radius_step=34.0 + self.mid_smooth * 10.0,
+            radius_step=34.0 + self.mid_smooth * 10.0 + audio.section_energy * 12.0,
             petal_amplitude=14.0 + self.mid_smooth * 22.0,
             petal_count=5,
             rotation=self.rotation,

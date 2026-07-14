@@ -21,7 +21,7 @@ class AudioInput:
         block_size: int = 1024,
         band_count: int = 5,
         spectrum_resolution: int = 64,
-        input_gain: float = 4.0,
+        input_gain: float = 1.0,
         channel: int = 0,
         channels: int = 1,
         latency=None,

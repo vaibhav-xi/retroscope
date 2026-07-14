@@ -82,13 +82,13 @@ class App:
         #     BlackHole()
         # )
 
-        self.manager.register(
-            AudioReactiveMode1()
-        )
+        # self.manager.register(
+        #     AudioReactiveMode1()
+        # )
 
-        self.manager.register(
-            AudioReactiveMode2()
-        )
+        # self.manager.register(
+        #     AudioReactiveMode2()
+        # )
 
         self.manager.register(
             AudioReactiveMode3()

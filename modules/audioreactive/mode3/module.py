@@ -161,12 +161,34 @@ class AudioReactiveMode3(Module):
 
         self.dust.update(reseed_fraction=_DUST_RESEED_FRACTION)
 
-        if audio.bass_hit:
+        #
+        # A held bass note and a kick both used to read as "bass_hit",
+        # so a sustained bassline kept re-triggering this ring. Trigger
+        # on the percussive attack instead, and prefer the phase-locked
+        # beat pulse once tempo is confidently locked.
+        #
+
+        beat_trigger = (
+            audio.on_beat if audio.beat_confidence > 0.3 else audio.attack_hit
+        )
+
+        if beat_trigger:
 
             self.shockwaves.spawn(
-                strength=14.0 + audio.bass * 22.0,
-                speed=140.0 + audio.bass * 160.0,
+                strength=14.0 + self.bass_smooth * 22.0,
+                speed=140.0 + self.bass_smooth * 160.0,
                 wobble=0.2,
+            )
+
+        if audio.drop:
+
+            # A genuine structural drop - the track jumping from a
+            # sustained quiet section into a loud one - gets its own
+            # big ring, independent of the regular per-beat ones.
+            self.shockwaves.spawn(
+                strength=30.0 + self.bass_smooth * 20.0,
+                speed=260.0,
+                wobble=0.05,
             )
 
         if audio.mid_hit:
@@ -212,7 +234,9 @@ class AudioReactiveMode3(Module):
 
         audio = self.audio
         
-        scale = 90.0 * (0.85 + self.bass_smooth * 0.45)
+        scale = 90.0 * (
+            0.85 + self.bass_smooth * 0.45 + audio.section_energy * 0.2
+        )
 
         positions = self.dust.points((0.0, 0.0), scale)
 

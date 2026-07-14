@@ -15,7 +15,7 @@ from render.primitives import Polyline
 from render.renderable import Renderable
 from render_es2.material import Material
 
-from inputs.audio import AudioInput
+from inputs.music_analysis import MusicAnalyzer
 
 from .spectrum import spectrum_ring
 from .particles import EmberField
@@ -38,11 +38,10 @@ class AudioReactiveMode1(Module):
 
         super().__init__("Audio Reactive - Mode 1")
 
-        self.audio = AudioInput(
+        self.audio = MusicAnalyzer(
             device=config.AUDIO_DEVICE,
             samplerate=config.AUDIO_SAMPLE_RATE,
             block_size=config.AUDIO_BLOCK_SIZE,
-            band_count=5,
             spectrum_resolution=_SPECTRUM_RESOLUTION,
         )
 
@@ -117,13 +116,32 @@ class AudioReactiveMode1(Module):
 
         self.rotation += dt * 0.12
 
-        level = self.audio.level
+        audio = self.audio
+
+        level = audio.level
 
         self.pulse += (level - self.pulse) * 0.25
 
-        if self.audio.beat:
+        #
+        # Once tempo is confidently locked, spawn on the phase-locked
+        # beat pulse rather than a raw same-frame bass threshold - the
+        # embers land on the actual beat grid instead of re-triggering
+        # on every bass transient regardless of song tempo. Before
+        # lock (first few seconds, or on untuned percussion), fall
+        # back to the raw percussive attack so it isn't silent.
+        #
 
-            self.embers.spawn(6 if _IS_DESKTOP else 3)
+        beat_trigger = (
+            audio.on_beat if audio.beat_confidence > 0.3 else audio.attack_hit
+        )
+
+        if beat_trigger:
+
+            burst = 6 if _IS_DESKTOP else 3
+
+            burst = max(1, round(burst * (0.5 + 0.5 * audio.attack)))
+
+            self.embers.spawn(burst)
 
         elif level > 0.05:
 

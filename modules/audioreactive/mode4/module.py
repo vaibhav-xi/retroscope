@@ -215,7 +215,11 @@ class AudioReactiveMode4(Module):
 
         self.beat_pulse *= math.exp(-dt * 6.0)
 
-        if audio.bass_hit:
+        beat_trigger = (
+            audio.on_beat if audio.beat_confidence > 0.3 else audio.attack_hit
+        )
+
+        if beat_trigger:
             self.beat_pulse = max(self.beat_pulse, 1.0)
 
         self.comet_kick *= math.exp(-dt * 5.0)
@@ -241,8 +245,11 @@ class AudioReactiveMode4(Module):
         # Growth
         #
 
-        if audio.bass_hit:
-            self.growth.spurt(amount=18.0 + audio.bass * 26.0)
+        if beat_trigger:
+            self.growth.spurt(amount=18.0 + self.bass_smooth * 26.0)
+
+        if audio.drop:
+            self.growth.spurt(amount=40.0 + self.bass_smooth * 30.0)
 
         if audio.high_hit:
             self.growth.fork(count=2 if _IS_DESKTOP else 1)
@@ -257,10 +264,23 @@ class AudioReactiveMode4(Module):
         # Boids
         #
 
+        if audio.beat_confidence > 0.3:
+            # Sharpest right as a beat lands, relaxed by the midpoint
+            # between beats - quantized motion, not a reaction to
+            # whatever bass energy happens to be present this frame.
+            beat_snap = (1.0 - audio.beat_phase) ** 3
+        else:
+            beat_snap = 0.0
+
         self.boids.update(
             dt,
             focus=self.focus,
-            cohesion=0.6 + self.bass_smooth * 1.8 + self.beat_pulse * 1.2,
+            cohesion=(
+                0.6
+                + self.bass_smooth * 1.8
+                + self.beat_pulse * 1.2
+                + beat_snap * 1.0
+            ),
             alignment=0.8 + self.mid_smooth * 1.6,
             separation=40.0,
             jitter=6.0 + audio.high * 60.0,
@@ -279,7 +299,7 @@ class AudioReactiveMode4(Module):
             center=(0.0, 0.0),
         )
 
-        if audio.high_hit or (audio.bass_hit and audio.bass > 0.7):
+        if audio.high_hit or (audio.attack_hit and self.bass_smooth > 0.7):
 
             trail = self.comet.trail()
 
