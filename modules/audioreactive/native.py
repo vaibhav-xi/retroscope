@@ -1,26 +1,3 @@
-"""
-RetroScope
-
-Native Acceleration Bridge - Audio Reactive Modules
-
-Ported modules (currently Mode 1) import particle/geometry helpers
-from here instead of importing their pure-Python implementation
-directly. This module tries to load the compiled native extension
-(modules/audioreactive/_native/) first; if it isn't built for the
-current platform, it transparently falls back to the original
-pure-Python implementation, so nothing breaks on a machine that
-hasn't run the build step yet - same "native accelerates, Python
-describes" split used by render_es2/_native.
-
-To build the native extension:
-
-    cd modules/audioreactive/_native
-    python3 setup.py build_ext --inplace
-
-This has to be run separately on each target platform (the same way
-render_es2/_native's checked-in .so is Mac-specific and won't load on
-a Raspberry Pi) - there is no cross-compiled binary checked in here.
-"""
 
 from __future__ import annotations
 
@@ -40,15 +17,6 @@ except ImportError:
 if NATIVE_AVAILABLE:
 
     class EmberField:
-        """
-        Native-backed drop-in replacement for
-        modules/audioreactive/mode1/particles.py's EmberField.
-
-        The native side uses its own fast xorshift RNG rather than
-        the passed-in `random.Random`, seeded once from it, so calls
-        stay unpredictable-looking without paying the cost of calling
-        back into the interpreter per particle.
-        """
 
         def __init__(self, capacity: int, inner_radius: float, random):
 

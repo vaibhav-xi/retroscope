@@ -118,15 +118,6 @@ class AudioReactiveMode1(Module):
 
         self.pulse += (level - self.pulse) * 0.25
 
-        #
-        # Once tempo is confidently locked, spawn on the phase-locked
-        # beat pulse rather than a raw same-frame bass threshold - the
-        # embers land on the actual beat grid instead of re-triggering
-        # on every bass transient regardless of song tempo. Before
-        # lock (first few seconds, or on untuned percussion), fall
-        # back to the raw percussive attack so it isn't silent.
-        #
-
         beat_trigger = (
             audio.on_beat if audio.beat_confidence > 0.3 else audio.attack_hit
         )
