@@ -117,6 +117,7 @@ class MusicAnalyzer(AudioInput):
         channels: int = 1,
         latency=None,
         muted: bool = False,
+        stereo: bool = False,
     ):
 
         super().__init__(
@@ -130,7 +131,9 @@ class MusicAnalyzer(AudioInput):
             channels=channels,
             latency=latency,
             muted=muted,
+            stereo=stereo,
         )
+
 
         self.bass: float = 0.0
         self.low_mid: float = 0.0

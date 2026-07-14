@@ -26,6 +26,7 @@ class AudioInput:
         channels: int = 1,
         latency=None,
         muted: bool = False,
+        stereo: bool = False,
     ):
 
         self.device = device
@@ -39,6 +40,9 @@ class AudioInput:
         self.channels = max(channels, channel + 1)
         self.latency = latency
         self.muted = bool(muted)
+        
+        self.stereo_requested = bool(stereo)
+        self.stereo_available = False
 
         self._stream = None
         self._window = np.hanning(block_size).astype(np.float32)
@@ -75,6 +79,10 @@ class AudioInput:
 
         self._waveform_buffer = np.zeros(self._waveform_capacity, dtype=np.float32)
         self._waveform_write = 0
+
+        self._left_buffer = np.zeros(self._waveform_capacity, dtype=np.float32)
+        self._right_buffer = np.zeros(self._waveform_capacity, dtype=np.float32)
+        self._stereo_write = 0
 
     # ---------------------------------------------------------
     # Gain / mute controls
@@ -137,27 +145,69 @@ class AudioInput:
 
             return
 
+        requested_channels = self.channels
+
+        if self.stereo_requested:
+
+            requested_channels = max(requested_channels, 2)
+
         try:
 
-            self._stream = sd.InputStream(
-                device=self.device,
-                channels=self.channels,
-                samplerate=self.samplerate,
-                blocksize=self.block_size,
-                latency=self.latency,
-                callback=self._callback,
-            )
+            self._open_stream(requested_channels)
 
-            self._stream.start()
+            self.stereo_available = self.channels >= 2
 
         except Exception as exc:
 
-            print(
-                f"[AudioInput] could not open input device "
-                f"({exc}) - running silent."
-            )
+            if requested_channels > 1:
 
-            self._stream = None
+                print(
+                    f"[AudioInput] stereo capture unavailable "
+                    f"({exc}) - falling back to mono."
+                )
+
+                try:
+
+                    self._open_stream(1)
+
+                    self.stereo_available = False
+
+                except Exception as exc2:
+
+                    print(
+                        f"[AudioInput] could not open input device "
+                        f"({exc2}) - running silent."
+                    )
+
+                    self._stream = None
+                    self.stereo_available = False
+
+            else:
+
+                print(
+                    f"[AudioInput] could not open input device "
+                    f"({exc}) - running silent."
+                )
+
+                self._stream = None
+                self.stereo_available = False
+
+    # ---------------------------------------------------------
+
+    def _open_stream(self, channels: int):
+
+        self.channels = max(channels, self.channel + 1)
+
+        self._stream = sd.InputStream(
+            device=self.device,
+            channels=self.channels,
+            samplerate=self.samplerate,
+            blocksize=self.block_size,
+            latency=self.latency,
+            callback=self._callback,
+        )
+
+        self._stream.start()
 
     # ---------------------------------------------------------
 
@@ -208,6 +258,10 @@ class AudioInput:
     # ---------------------------------------------------------
 
     def recent_waveform(self, sample_count: int) -> np.ndarray:
+        """
+        Returns the most recent `sample_count` raw samples, oldest
+        first, newest last (i.e. index -1 is "now").
+        """
 
         capacity = self._waveform_capacity
 
@@ -233,6 +287,80 @@ class AudioInput:
         )
 
     # ---------------------------------------------------------
+    # Stereo ring buffer
+    # ---------------------------------------------------------
+
+    def _record_stereo(self, left, right):
+
+        n = len(left)
+
+        capacity = self._waveform_capacity
+
+        if n >= capacity:
+
+            self._left_buffer[:] = left[-capacity:]
+            self._right_buffer[:] = right[-capacity:]
+            self._stereo_write = 0
+
+            return
+
+        end = self._stereo_write + n
+
+        if end <= capacity:
+
+            self._left_buffer[self._stereo_write:end] = left
+            self._right_buffer[self._stereo_write:end] = right
+
+        else:
+
+            first = capacity - self._stereo_write
+
+            self._left_buffer[self._stereo_write:] = left[:first]
+            self._right_buffer[self._stereo_write:] = right[:first]
+
+            remaining = n - first
+
+            self._left_buffer[:remaining] = left[first:]
+            self._right_buffer[:remaining] = right[first:]
+
+        self._stereo_write = end % capacity
+
+    # ---------------------------------------------------------
+
+    def recent_stereo(self, sample_count: int):
+
+        capacity = self._waveform_capacity
+
+        sample_count = max(0, min(sample_count, capacity))
+
+        if sample_count == 0:
+
+            empty = np.zeros(0, dtype=np.float32)
+
+            return empty, empty
+
+        start = (self._stereo_write - sample_count) % capacity
+
+        if start + sample_count <= capacity:
+
+            return (
+                self._left_buffer[start:start + sample_count].copy(),
+                self._right_buffer[start:start + sample_count].copy(),
+            )
+
+        first = capacity - start
+
+        left = np.concatenate(
+            (self._left_buffer[start:], self._left_buffer[: sample_count - first])
+        )
+
+        right = np.concatenate(
+            (self._right_buffer[start:], self._right_buffer[: sample_count - first])
+        )
+
+        return left, right
+
+    # ---------------------------------------------------------
     # Audio thread callback
     # ---------------------------------------------------------
 
@@ -240,15 +368,30 @@ class AudioInput:
 
         samples = indata[:, self.channel].astype(np.float32)
 
+        if self.channels >= 2:
+
+            left_raw = indata[:, 0].astype(np.float32)
+            right_raw = indata[:, 1].astype(np.float32)
+
+        else:
+
+            left_raw = samples
+            right_raw = samples
+
         if self.muted:
 
             samples = samples * 0.0
+            left_raw = left_raw * 0.0
+            right_raw = right_raw * 0.0
 
         elif self.input_gain != 1.0:
 
             samples = np.clip(samples * self.input_gain, -1.0, 1.0)
+            left_raw = np.clip(left_raw * self.input_gain, -1.0, 1.0)
+            right_raw = np.clip(right_raw * self.input_gain, -1.0, 1.0)
 
         self._record_waveform(samples)
+        self._record_stereo(left_raw, right_raw)
 
         rms = float(
             np.sqrt(np.mean(samples * samples)) + 1e-9
