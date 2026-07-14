@@ -1,58 +1,14 @@
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 
 from inputs.audio import AudioInput
 
 
 class MusicAnalyzer(AudioInput):
-    """
-    Everything Mode 1-4 previously got from here was "loudness in five
-    buckets": five FFT bands, smoothed, plus a same-band onset test.
-    That's the Winamp/AVS-era toolkit, and it's why the geometry on top
-    of it - however elaborate - still reads as a skinned visualizer.
-
-    This adds four things a "visualizer" doesn't have:
-
-    1. Tempo/beat tracking (bpm, beat_phase, on_beat, beat_confidence)
-       - an actual estimated tempo with a phase-locked pulse, instead of
-       a threshold that fires identically on a 90 BPM kick and a 174 BPM
-       kick.
-
-    2. Percussive / harmonic separation (percussive, harmonic, attack,
-       attack_hit) - a lightweight real-time HPSS (median-filter based,
-       Fitzgerald-style) so a kick drum and a sustained bass note, which
-       used to live in the same "bass" bucket, now drive visibly
-       different things: sharp geometry snaps vs. smooth continuous
-       motion.
-
-    3. A structural energy arc (section_energy, energy_trend, build_up,
-       drop) - a short-term vs. long-term loudness comparison so the
-       system has *some* notion of "this is a quiet section" vs. "this
-       is the loudest part of the track" and can tell a build-up from a
-       drop, instead of being purely frame-to-frame reactive.
-
-    4. A cheap 12-bin chroma vector + harmonic_change novelty - not a
-       real key/chord detector, just pitch-class energy, but enough to
-       give a "the harmony just moved" signal for color/shape choices
-       that isn't just spectral brightness.
-
-    None of this is state-of-the-art MIR - there's no HMM/dynamic
-    programming beat tracker and no real chord recognition, both of
-    which need more history and CPU than a Raspberry Pi 3B audio
-    callback running at ~43 Hz can spend. What's here is the cheap end
-    of each of those techniques, chosen to actually change what the
-    geometry does, not just to add more numbers to log.
-
-    `bass` / `low_mid` / `mid` / `high_mid` / `high`, and the matching
-    `bass_hit` / `mid_hit` / `high_hit`, are unchanged and still mean
-    exactly what they meant before - band energy and same-band onset.
-    `beat` used to just alias `bass_hit`; it now means "the tempo
-    tracker's phase-locked pulse fired," which is a real behavior
-    change for anything that was reading `.beat` expecting a raw bass
-    transient (nothing in mode1-4 was, as of this change).
-    """
 
     _BAND_SMOOTHING = (
         (0.55, 0.10),   # bass
@@ -83,6 +39,51 @@ class MusicAnalyzer(AudioInput):
     # --- structural arc ---
     _SECTION_SHORT_SECONDS = 2.0
     _SECTION_LONG_SECONDS = 24.0
+
+    # --- key detection (Krumhansl-Schmuckler profiles) ---
+    _KEY_PROFILE_MAJOR = np.array(
+        [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88],
+        dtype=np.float32,
+    )
+
+    _KEY_PROFILE_MINOR = np.array(
+        [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17],
+        dtype=np.float32,
+    )
+
+    _KEY_CONFIDENCE_THRESHOLD = 0.55
+
+    # --- chord detection ---
+    _CHORD_THIRD_MAJOR = 4
+    _CHORD_THIRD_MINOR = 3
+    _CHORD_FIFTH = 7
+    _CHORD_HOLD_FRAMES = 3
+    _CHORD_CONFIDENCE_THRESHOLD = 0.35
+
+    # --- pitch tracking ---
+    _BASS_PITCH_MIN_HZ = 41.0    # ~E1
+    _BASS_PITCH_MAX_HZ = 262.0   # ~C4
+    _MELODY_PITCH_MIN_HZ = 180.0
+    _MELODY_PITCH_MAX_HZ = 2000.0
+    _PITCH_CONFIDENCE_FLOOR = 0.12
+
+    _INTERVAL_CONSONANCE = (
+        1.00,  # 0  unison / octave
+        0.05,  # 1  minor 2nd / major 7th
+        0.25,  # 2  major 2nd / minor 7th
+        0.65,  # 3  minor 3rd / major 6th
+        0.75,  # 4  major 3rd / minor 6th
+        0.90,  # 5  perfect 4th / perfect 5th
+        0.10,  # 6  tritone
+    )
+
+    _NOTE_NAMES = (
+        "C", "C#", "D", "D#", "E", "F",
+        "F#", "G", "G#", "A", "A#", "B",
+    )
+
+    # --- meter / bar tracking ---
+    _BAR_BEATS = 4
 
     def __init__(
         self,
@@ -144,6 +145,46 @@ class MusicAnalyzer(AudioInput):
         # --- lightweight harmony ---
         self.chroma = np.zeros(12, dtype=np.float32)
         self.harmonic_change: float = 0.0
+
+        # --- key detection ---
+        self.key_tonic: int = 0
+        self.key_is_major: bool = True
+        self.key_confidence: float = 0.0
+        self.key_name: str = "C major"
+
+        # --- chord detection ---
+        self.chord_root: int = 0
+        self.chord_is_major: bool = True
+        self.chord_confidence: float = 0.0
+        self.chord_name: str = "C"
+        self.chord_changed: bool = False
+
+        # --- consonance / tension ---
+        self.consonance: float = 1.0
+        self.tension: float = 0.0
+
+        # --- pitch tracking ---
+        self.bass_note_class: int = 0
+        self.bass_note_midi: float = 0.0
+        self.bass_note_confidence: float = 0.0
+
+        self.melody_note_class: int = 0
+        self.melody_note_midi: float = 0.0
+        self.melody_note_confidence: float = 0.0
+
+        self.harmonic_interval: int = 0
+        self.interval_consonance: float = 1.0
+
+        # --- meter / bar tracking ---
+        self.bar_beat_index: int = 0
+        self.bar_phase: float = 0.0
+        self.on_downbeat: bool = False
+
+        self._beat_count: int = 0
+        self._phase_energy = np.zeros(self._BAR_BEATS, dtype=np.float32)
+
+        self._pending_chord = None
+        self._pending_chord_count: int = 0
 
         nyquist = samplerate * 0.5
 
@@ -215,6 +256,26 @@ class MusicAnalyzer(AudioInput):
         self._pitch_classes_valid = pitch_class[self._pitch_valid]
 
         self._chroma_smooth = np.zeros(12, dtype=np.float32)
+
+        self._bass_pitch_mask = (
+            (self._freqs >= self._BASS_PITCH_MIN_HZ)
+            & (self._freqs <= self._BASS_PITCH_MAX_HZ)
+        ).astype(np.float32)
+
+        self._melody_pitch_mask = (
+            (self._freqs >= self._MELODY_PITCH_MIN_HZ)
+            & (self._freqs <= self._MELODY_PITCH_MAX_HZ)
+        ).astype(np.float32)
+
+        #
+        # Chord templates: 12 major + 12 minor triads expressed as
+        # weighted chroma vectors.
+        #
+
+        self._chord_templates = self._build_chord_templates()
+        self._chord_template_norms = (
+            np.linalg.norm(self._chord_templates, axis=1) + 1e-9
+        )
 
     # ---------------------------------------------------------
     # Audio thread callback
@@ -381,11 +442,52 @@ class MusicAnalyzer(AudioInput):
 
         self.attack = self.percussive
 
-        #
-        # Tempo tracking: build an onset envelope from *percussive*
-        # energy specifically, so a sustained bassline or pad doesn't
-        # get mistaken for a beat the way raw broadband flux would.
-        #
+        bass_pitch = self._estimate_pitch(
+            harmonic_component, self._bass_pitch_mask
+        )
+
+        if bass_pitch is not None and bass_pitch[2] > self._PITCH_CONFIDENCE_FLOOR:
+
+            pitch_class, midi, confidence = bass_pitch
+
+            self.bass_note_class = pitch_class
+            self.bass_note_midi += (midi - self.bass_note_midi) * 0.3
+            self.bass_note_confidence += (
+                confidence - self.bass_note_confidence
+            ) * 0.3
+
+        else:
+
+            self.bass_note_confidence *= 0.9
+
+        melody_pitch = self._estimate_pitch(
+            harmonic_component, self._melody_pitch_mask
+        )
+
+        if (
+            melody_pitch is not None
+            and melody_pitch[2] > self._PITCH_CONFIDENCE_FLOOR
+        ):
+
+            pitch_class, midi, confidence = melody_pitch
+
+            self.melody_note_class = pitch_class
+            self.melody_note_midi += (midi - self.melody_note_midi) * 0.35
+            self.melody_note_confidence += (
+                confidence - self.melody_note_confidence
+            ) * 0.35
+
+        else:
+
+            self.melody_note_confidence *= 0.9
+
+        interval = abs(self.bass_note_class - self.melody_note_class) % 12
+
+        self.harmonic_interval = min(interval, 12 - interval)
+
+        self.interval_consonance = float(
+            self._INTERVAL_CONSONANCE[self.harmonic_interval]
+        )
 
         if self._prev_percussive is not None:
 
@@ -422,13 +524,38 @@ class MusicAnalyzer(AudioInput):
 
         self.beat = self.on_beat
 
-        #
-        # Structural energy arc: short-term loudness vs. a slow,
-        # long-term baseline. Not "verse/chorus" detection - just
-        # enough to tell a quiet section from a loud one and notice
-        # when the track jumps from one to the other.
-        #
+        if self.on_beat:
 
+            self._beat_count += 1
+
+            phase_index = self._beat_count % self._BAR_BEATS
+
+            self._phase_energy[phase_index] += (
+                self.bass - self._phase_energy[phase_index]
+            ) * 0.3
+
+            downbeat_offset = int(np.argmax(self._phase_energy))
+
+            self.bar_beat_index = (
+                self._beat_count - downbeat_offset
+            ) % self._BAR_BEATS
+
+            self.on_downbeat = self.bar_beat_index == 0
+
+        else:
+
+            self.on_downbeat = False
+
+        if self._beat_period_frames:
+
+            self.bar_phase = (
+                (self.bar_beat_index + self.beat_phase) / self._BAR_BEATS
+            ) % 1.0
+
+        else:
+
+            self.bar_phase = 0.0
+            
         short_rate = 1.0 / (self._SECTION_SHORT_SECONDS * self._tempo_frame_rate)
         long_rate = 1.0 / (self._SECTION_LONG_SECONDS * self._tempo_frame_rate)
 
@@ -462,10 +589,6 @@ class MusicAnalyzer(AudioInput):
 
         self.drop = was_low and self.energy_trend > 0.6
 
-        #
-        # Lightweight chroma + harmonic-change novelty.
-        #
-
         chroma = np.bincount(
             self._pitch_classes_valid,
             weights=magnitude[self._pitch_valid],
@@ -498,6 +621,8 @@ class MusicAnalyzer(AudioInput):
             change = 0.0
 
         self.harmonic_change += (change - self.harmonic_change) * 0.3
+
+        self._update_key_and_chord()
 
     # ---------------------------------------------------------
 
@@ -566,18 +691,12 @@ class MusicAnalyzer(AudioInput):
 
         if confidence < self._TEMPO_MIN_CONFIDENCE:
 
-            # Too ambiguous a beat to commit to a new number - keep the
-            # last stable estimate and just let confidence bleed off.
             self.beat_confidence *= 0.9
 
             return
 
         bpm = 60.0 * self._tempo_frame_rate / peak_lag
 
-        # Autocorrelation-based tempo estimates commonly lock onto a
-        # half or double of the "felt" tempo. If we already have a
-        # stable estimate, prefer whichever octave is closer to it
-        # instead of letting the estimate flip back and forth.
         if self.bpm > 0.0:
 
             for factor in (2.0, 0.5):
@@ -608,13 +727,6 @@ class MusicAnalyzer(AudioInput):
     # ---------------------------------------------------------
 
     def _advance_beat_phase(self):
-        """
-        Advance a phase counter at the estimated tempo, and gently pull
-        it into lock with real percussive attacks - a simple PLL, not
-        a state-space beat tracker. `on_beat` fires once per predicted
-        beat, quantized to the tempo grid, rather than once per raw
-        transient.
-        """
 
         if not self._beat_period_frames:
 
@@ -658,6 +770,205 @@ class MusicAnalyzer(AudioInput):
         self.beat_phase = phase
 
         self.on_beat = phase < previous_phase
+
+    # ---------------------------------------------------------
+
+    @staticmethod
+    def _build_chord_templates():
+
+        templates = np.zeros((24, 12), dtype=np.float32)
+
+        for root in range(12):
+
+            major = np.zeros(12, dtype=np.float32)
+            major[root] = 1.0
+            major[(root + MusicAnalyzer._CHORD_THIRD_MAJOR) % 12] = 0.85
+            major[(root + MusicAnalyzer._CHORD_FIFTH) % 12] = 0.75
+
+            minor = np.zeros(12, dtype=np.float32)
+            minor[root] = 1.0
+            minor[(root + MusicAnalyzer._CHORD_THIRD_MINOR) % 12] = 0.85
+            minor[(root + MusicAnalyzer._CHORD_FIFTH) % 12] = 0.75
+
+            templates[root] = major
+            templates[12 + root] = minor
+
+        return templates
+
+    # ---------------------------------------------------------
+
+    def _update_key_and_chord(self):
+
+        chroma = self.chroma
+
+        norm = float(np.linalg.norm(chroma))
+
+        if norm < 1e-6:
+
+            return
+
+        normalized = chroma / norm
+
+        #
+        # Key.
+        #
+
+        best_key_score = -1e9
+        best_key = (self.key_tonic, self.key_is_major)
+
+        for tonic in range(12):
+
+            major_profile = np.roll(self._KEY_PROFILE_MAJOR, tonic)
+            minor_profile = np.roll(self._KEY_PROFILE_MINOR, tonic)
+
+            major_score = float(
+                np.dot(normalized, major_profile)
+                / (np.linalg.norm(major_profile) + 1e-9)
+            )
+
+            minor_score = float(
+                np.dot(normalized, minor_profile)
+                / (np.linalg.norm(minor_profile) + 1e-9)
+            )
+
+            if major_score > best_key_score:
+
+                best_key_score = major_score
+                best_key = (tonic, True)
+
+            if minor_score > best_key_score:
+
+                best_key_score = minor_score
+                best_key = (tonic, False)
+
+        key_confidence = float(np.clip(best_key_score / 6.5, 0.0, 1.0))
+
+        self.key_confidence += (key_confidence - self.key_confidence) * 0.02
+
+        if key_confidence > self._KEY_CONFIDENCE_THRESHOLD:
+
+            if best_key != (self.key_tonic, self.key_is_major):
+
+                self.key_tonic, self.key_is_major = best_key
+
+        self.key_name = (
+            f"{self._NOTE_NAMES[self.key_tonic]} "
+            f"{'major' if self.key_is_major else 'minor'}"
+        )
+
+        #
+        # Chord.
+        #
+
+        scores = (
+            self._chord_templates @ normalized
+        ) / self._chord_template_norms
+
+        best_index = int(np.argmax(scores))
+
+        chord_confidence = float(np.clip(scores[best_index], 0.0, 1.0))
+
+        chord_root = best_index % 12
+        chord_is_major = best_index < 12
+
+        candidate = (chord_root, chord_is_major)
+
+        self.chord_confidence += (chord_confidence - self.chord_confidence) * 0.15
+
+        if candidate == self._pending_chord:
+
+            self._pending_chord_count += 1
+
+        else:
+
+            self._pending_chord = candidate
+            self._pending_chord_count = 1
+
+        self.chord_changed = False
+
+        if (
+            self._pending_chord_count >= self._CHORD_HOLD_FRAMES
+            and chord_confidence > self._CHORD_CONFIDENCE_THRESHOLD
+            and candidate != (self.chord_root, self.chord_is_major)
+        ):
+
+            self.chord_root, self.chord_is_major = candidate
+
+            self.chord_name = (
+                f"{self._NOTE_NAMES[self.chord_root]}"
+                f"{'' if self.chord_is_major else 'm'}"
+            )
+
+            self.chord_changed = True
+
+        current_template = self._chord_templates[
+            self.chord_root + (0 if self.chord_is_major else 12)
+        ]
+
+        current_norm = float(np.linalg.norm(current_template)) + 1e-9
+
+        consonance = float(
+            np.clip(
+                np.dot(normalized, current_template) / current_norm,
+                0.0,
+                1.0,
+            )
+        )
+
+        self.consonance += (consonance - self.consonance) * 0.2
+
+        self.tension = 1.0 - self.consonance
+
+    # ---------------------------------------------------------
+
+    def _estimate_pitch(self, magnitude, mask):
+
+        restricted = magnitude * mask
+
+        total = float(restricted.sum())
+
+        if total <= 1e-9:
+
+            return None
+
+        product = restricted.copy()
+
+        for factor in (2, 3, 4):
+
+            n = len(restricted) // factor
+
+            if n < 2:
+
+                break
+
+            downsampled = np.zeros_like(restricted)
+            downsampled[:n] = restricted[::factor][:n]
+
+            product *= downsampled
+
+        peak_index = int(np.argmax(product))
+
+        peak_value = float(product[peak_index])
+
+        if peak_value <= 0.0:
+
+            return None
+
+        product_total = float(product.sum()) + 1e-9
+
+        confidence = float(np.clip(peak_value / product_total * 4.0, 0.0, 1.0))
+
+        freq = float(self._freqs[peak_index])
+
+        if freq <= 1.0:
+
+            return None
+
+        midi = 69.0 + 12.0 * math.log2(freq / 440.0)
+
+        pitch_class = int(round(midi)) % 12
+
+        return pitch_class, midi, confidence
 
     # ---------------------------------------------------------
 
@@ -716,3 +1027,20 @@ class MusicAnalyzer(AudioInput):
     def highs(self) -> float:
 
         return (self.high_mid + self.high) * 0.5
+
+    # ---------------------------------------------------------
+
+    @property
+    def chord_tones(self):
+
+        third_interval = (
+            self._CHORD_THIRD_MAJOR
+            if self.chord_is_major
+            else self._CHORD_THIRD_MINOR
+        )
+
+        return (
+            self.chord_root,
+            (self.chord_root + third_interval) % 12,
+            (self.chord_root + self._CHORD_FIFTH) % 12,
+        )
