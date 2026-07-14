@@ -1,5 +1,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
+
+#define PY_ARRAY_UNIQUE_SYMBOL AUDIOREACTIVE_ARRAY_API
+#define NO_IMPORT_ARRAY
 #include <numpy/arrayobject.h>
 
 #include <math.h>
@@ -46,11 +49,21 @@ spectrum_ring_build(
         return NULL;
     }
 
+    /*
+     * FORCECAST: the incoming array is frequently float64 in
+     * practice (inputs/audio.py's smoothing upcasts float32 the
+     * moment it's combined with a plain Python float via np.where),
+     * and the pure-Python implementation this replaces never
+     * required a specific input dtype either - it only cast its
+     * *output* to float32. Without FORCECAST, numpy's default safe-
+     * casting rule rejects float64 -> float32 outright.
+     */
+
     PyArrayObject *magnitudes =
         (PyArrayObject *)PyArray_FROM_OTF(
             magnitudes_obj,
             NPY_FLOAT32,
-            NPY_ARRAY_IN_ARRAY
+            NPY_ARRAY_IN_ARRAY | NPY_ARRAY_FORCECAST
         );
 
     if (magnitudes == NULL)
@@ -96,11 +109,6 @@ spectrum_ring_build(
         }
         else
         {
-            /*
-             * Mirrors the pure-Python
-             * np.concatenate([values, values[::-1]]).
-             */
-
             value = values[(2 * n - 1) - i];
         }
 
@@ -113,11 +121,6 @@ spectrum_ring_build(
         out[i * 2 + 0] = radius * cosf(angle);
         out[i * 2 + 1] = radius * sinf(angle);
     }
-
-    /*
-     * Close the loop - last point repeats the first, matching
-     * np.vstack([points, points[0]]).
-     */
 
     out[count * 2 + 0] = out[0];
     out[count * 2 + 1] = out[1];
