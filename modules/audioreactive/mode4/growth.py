@@ -182,25 +182,31 @@ class GrowthTree:
 
             return np.zeros((0, 13, 2), dtype=np.float32)
 
-        points = np.empty((n, 13, 2), dtype=np.float32)
+        tx = np.empty(n, dtype=np.float32)
+        ty = np.empty(n, dtype=np.float32)
+        angle = np.empty(n, dtype=np.float32)
+        size = np.empty(n, dtype=np.float32)
 
         for i, branch in enumerate(bloomed):
 
-            tx, ty = self._tip(branch)
+            x, y = self._tip(branch)
 
-            size = 5.0 * (0.8 ** branch["depth"])
+            tx[i] = x
+            ty[i] = y
+            angle[i] = branch["angle"]
+            size[i] = 5.0 * (0.8 ** branch["depth"])
 
-            points[i, 0, 0] = tx
-            points[i, 0, 1] = ty
+        k = np.arange(6, dtype=np.float32)
 
-            for k in range(6):
+        spoke_angles = angle[:, None] + (k[None, :] / 6.0) * math.tau
 
-                angle = branch["angle"] + (k / 6.0) * math.tau
+        spoke_x = tx[:, None] + np.cos(spoke_angles) * size[:, None]
+        spoke_y = ty[:, None] + np.sin(spoke_angles) * size[:, None]
 
-                points[i, 1 + k * 2, 0] = tx + math.cos(angle) * size
-                points[i, 1 + k * 2, 1] = ty + math.sin(angle) * size
+        points = np.empty((n, 13, 2), dtype=np.float32)
 
-                points[i, 2 + k * 2, 0] = tx
-                points[i, 2 + k * 2, 1] = ty
+        points[:, 0, 0] = tx
+        points[:, 0, 1] = ty
 
-        return points
+        points[:, 1::2, 0] = spoke_x
+        points[:, 1::2, 1] = spoke_y
