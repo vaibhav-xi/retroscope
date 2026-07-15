@@ -32,6 +32,9 @@ class MusicAnalyzer(AudioInput):
     _TEMPO_MIN_BPM = 70.0
     _TEMPO_MAX_BPM = 190.0
     _TEMPO_UPDATE_EVERY = 12    # recompute autocorrelation every N callbacks
+    
+    _FEATURE_UPDATE_EVERY = 3
+    
     _TEMPO_MIN_CONFIDENCE = 0.15
     _PHASE_LOCK_RANGE = 0.3      # only correct phase if an attack lands within +/-30%
     _PHASE_LOCK_STRENGTH = 0.35  # how hard to pull phase toward that attack
@@ -307,6 +310,9 @@ class MusicAnalyzer(AudioInput):
         self._onset_write = 0
         self._onset_filled = 0
         self._tempo_counter = 0
+        
+        
+        self._feature_counter = 0
 
         self._beat_period_frames = None
         self._beat_phase_counter = 0.0
@@ -665,6 +671,11 @@ class MusicAnalyzer(AudioInput):
         self.snare_hit, self._snare_avg = self._onset(
             self.snare_energy, self._snare_avg, *self._SNARE_ONSET
         )
+        
+        self._feature_counter += 1
+        update_features = (
+            self._feature_counter % self._FEATURE_UPDATE_EVERY == 0
+        )
 
         if self.enable_vocal_analysis:
 
@@ -754,7 +765,7 @@ class MusicAnalyzer(AudioInput):
 
                 self.vocal_note_confidence *= 0.9
 
-        if self.enable_pitch_tracking:
+        if self.enable_pitch_tracking and update_features:
 
             bass_pitch = self._estimate_pitch(
                 harmonic_component, self._bass_pitch_mask
@@ -903,7 +914,7 @@ class MusicAnalyzer(AudioInput):
 
         self.drop = was_low and self.energy_trend > 0.6
 
-        if self.enable_harmony:
+        if self.enable_harmony and update_features:
 
             chroma = np.bincount(
                 self._pitch_classes_valid,
