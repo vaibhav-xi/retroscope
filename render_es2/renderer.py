@@ -36,11 +36,11 @@ class Renderer:
             vertex,
             fragment,
         )
-        
+
         self.shader.use()
-        
+
         self.profiler = Profiler()
-        
+
         self.render_graph = RenderGraph()
 
         self.render_graph.add(
@@ -50,21 +50,15 @@ class Renderer:
             )
 
         )
-        
+
     def render(self, frame):
 
         glClear(GL_COLOR_BUFFER_BIT)
         
-        self.profiler.samples.clear()
-
-        #
-        # Build geometry.
-        #
-
         self.profiler.begin(
             "GeometryBuilder"
         )
-        
+
         GeometryBuilder.profiler = self.profiler
 
         packet = GeometryBuilder.build(
@@ -90,5 +84,3 @@ class Renderer:
         self.profiler.end(
             "RenderGraph"
         )
-
-        self.profiler.report()

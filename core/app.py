@@ -42,7 +42,7 @@ class App:
             config.HEIGHT,
             config.WINDOW_TITLE,
         )
-        
+
         self.context.width = config.WIDTH
         self.context.height = config.HEIGHT
 
@@ -52,6 +52,15 @@ class App:
 
         self.renderer = Renderer()
 
+        #
+        # Shared profiler. The renderer already owns one (used for
+        # GeometryBuilder / StrokeBuilder / RenderGraph); reuse it
+        # here so Poll / Update / Emit / Swap show up in the same
+        # per-second report instead of being invisible.
+        #
+
+        self.profiler = self.renderer.profiler
+
     # ---------------------------------------------------------
 
     def initialize(self):
@@ -59,7 +68,7 @@ class App:
         from modules.grid.grid import GridModule
         from modules.overlay.overlay import OverlayModule
         from modules.wave.module import WaveModule
-        
+
         from modules.blackhole.module import BlackHole
         from modules.audioreactive.mode1.module import AudioReactiveMode1
         from modules.audioreactive.mode2.module import AudioReactiveMode2
@@ -92,38 +101,38 @@ class App:
         #     AudioReactiveMode1()
         # )
 
-#        self.manager.register(
-#            AudioReactiveMode2()
-#        )
+        # self.manager.register(
+        #     AudioReactiveMode2()
+        # )
 
-#        self.manager.register(
-#            AudioReactiveMode3()
-#        )
-        
         self.manager.register(
-            AudioReactiveMode4()
+            AudioReactiveMode3()
         )
-        
+
+        # self.manager.register(
+        #     AudioReactiveMode4()
+        # )
+
         # self.manager.register(
         #     AudioReactiveMode5()
         # )
-        
+
         # self.manager.register(
         #     AudioReactiveMode6()
         # )
-        
+
         # self.manager.register(
         #     AudioReactiveMode7()
         # )
-        
+
         # self.manager.register(
         #     AudioReactiveMode8()
         # )
-        
+
         # self.manager.register(
         #     AudioReactiveMode9()
         # )
-        
+
         # self.manager.register(
         #     AudioReactiveMode10()
         # )
@@ -138,16 +147,24 @@ class App:
 
         self.context.update()
 
+        self.profiler.begin("Update")
+
         self.manager.update(
             self.context
         )
 
+        self.profiler.end("Update")
+
         self.frame.clear()
+
+        self.profiler.begin("Emit")
 
         self.manager.emit(
             self.context,
             self.frame,
         )
+
+        self.profiler.end("Emit")
 
     # ---------------------------------------------------------
 
@@ -157,7 +174,11 @@ class App:
             self.frame
         )
 
+        self.profiler.begin("Swap")
+
         self.window.swap()
+
+        self.profiler.end("Swap")
 
     # ---------------------------------------------------------
 
@@ -172,15 +193,27 @@ class App:
     def run(self):
 
         self.initialize()
-        
+
         frame_counter = 0
         total_time = 0.0
 
         while not self.window.should_close():
-            
+
             start = time.perf_counter()
 
+            #
+            # Reset the profiler for this frame. report() only
+            # prints once a second, but always reflects the most
+            # recent frame's breakdown.
+            #
+
+            self.profiler.samples.clear()
+
+            self.profiler.begin("Poll")
+
             self.window.poll()
+
+            self.profiler.end("Poll")
 
             #
             # ESC closes window
@@ -204,7 +237,9 @@ class App:
             #
 
             self.draw()
-            
+
+            self.profiler.report()
+
             end = time.perf_counter()
 
             total_time += end - start

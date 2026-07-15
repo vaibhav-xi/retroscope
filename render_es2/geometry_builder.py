@@ -20,7 +20,7 @@ from render_es2.geometry import Geometry
 from render_es2._native import VertexBuffer
 
 class GeometryBuilder:
-    
+
     profiler = None
 
     @staticmethod
@@ -63,27 +63,51 @@ class GeometryBuilder:
                     geometry = Geometry()
 
                     geometry.vertex_buffer = VertexBuffer()
-                    
-                    # print(geometry.vertex_buffer)
 
                     #
-                    # Ask the registry which builder handles
-                    # each primitive.
+                    # Ask the registry which builder handles each
+                    # primitive, and group consecutive primitives
+                    # that share a builder so batch-capable
+                    # builders (StrokeBuilder) build them in one
+                    # native call instead of one call per
+                    # primitive.
                     #
-                    
-                    # print(
-                    #     "renderable",
-                    #     len(renderable.primitives),
-                    #     renderable.material.color,
-                    # )
+
+                    profiler = GeometryBuilder.profiler
+
+                    run_builder = None
+                    run_items = []
+
+                    def _flush(builder, items):
+
+                        if not items:
+                            return
+
+                        profiler.begin(
+                            "StrokeBuilder"
+                        )
+
+                        if hasattr(builder, "build_many"):
+
+                            builder.build_many(
+                                items,
+                                geometry.vertex_buffer,
+                            )
+
+                        else:
+
+                            for item in items:
+
+                                builder.build(
+                                    item,
+                                    geometry.vertex_buffer,
+                                )
+
+                        profiler.end(
+                            "StrokeBuilder"
+                        )
 
                     for primitive in renderable.primitives:
-                        
-                        
-                        # print(
-                        #     " primitive",
-                        #     primitive,
-                        # )
 
                         builder = BuilderRegistry.builder_for(
                             primitive
@@ -92,28 +116,16 @@ class GeometryBuilder:
                         if builder is None:
                             continue
 
-                        profiler = GeometryBuilder.profiler
+                        if builder is not run_builder:
 
-                        profiler.begin(
-                            "StrokeBuilder"
-                        )
+                            _flush(run_builder, run_items)
 
-                        builder.build(
+                            run_builder = builder
+                            run_items = []
 
-                            primitive,
+                        run_items.append(primitive)
 
-                            geometry.vertex_buffer,
-
-                        )
-                        
-                        # print(
-                        #     "after build",
-                        #     geometry.vertex_buffer.count
-                        # )
-
-                        profiler.end(
-                            "StrokeBuilder"
-                        )
+                    _flush(run_builder, run_items)
 
                     #
                     # Cache static geometry.

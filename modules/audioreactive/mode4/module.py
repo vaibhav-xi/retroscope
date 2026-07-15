@@ -86,6 +86,10 @@ class AudioReactiveMode4(Module):
             samplerate=config.AUDIO_SAMPLE_RATE,
             block_size=config.AUDIO_BLOCK_SIZE,
             spectrum_resolution=_SPECTRUM_RESOLUTION,
+            enable_band_waveforms=False,
+            enable_vocal_analysis=False,
+            enable_pitch_tracking=False,
+            enable_harmony=False,
         )
 
         self.rotation = 0.0

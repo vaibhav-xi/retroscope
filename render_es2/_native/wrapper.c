@@ -125,11 +125,208 @@ build(
 
 /* --------------------------------------------------------- */
 
+/*
+ * build_many(polylines, width, vertex_buffer)
+ *
+ * Same as build(), but for a whole sequence of point arrays at
+ * once. Reserves capacity for the entire batch up front (one
+ * grow instead of one per primitive) and does a single Python/C
+ * transition instead of one per primitive. Intended for
+ * renderables that add hundreds of small polylines per frame
+ * (dash fields, particle fans, etc).
+ */
+
+static PyObject *
+build_many(
+    PyObject *self,
+    PyObject *args
+)
+{
+    PyObject *polylines;
+    double width;
+
+    PyObject *vertex_buffer_obj;
+    VertexBufferObject *vertex_buffer;
+
+    if (!PyArg_ParseTuple(
+        args,
+        "OdO",
+        &polylines,
+        &width,
+        &vertex_buffer_obj))
+    {
+        return NULL;
+    }
+
+    if (!PyObject_TypeCheck(
+            vertex_buffer_obj,
+            &VertexBufferType))
+    {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "expected VertexBuffer"
+        );
+
+        return NULL;
+    }
+
+    vertex_buffer =
+        (VertexBufferObject *)
+            vertex_buffer_obj;
+
+    if (!PySequence_Check(polylines))
+    {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "expected a sequence of point arrays"
+        );
+
+        return NULL;
+    }
+
+    Py_ssize_t polyline_count =
+        PySequence_Size(polylines);
+
+    if (polyline_count < 0)
+    {
+        return NULL;
+    }
+
+    if (polyline_count == 0)
+    {
+        Py_RETURN_NONE;
+    }
+
+    PyArrayObject **arrays =
+        (PyArrayObject **)PyMem_Malloc(
+            sizeof(PyArrayObject *) * (size_t)polyline_count
+        );
+
+    if (arrays == NULL)
+    {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    /*
+     * First pass: convert every entry to a contiguous float32
+     * array and compute the total capacity needed, so the vertex
+     * buffer grows (at most) once for the whole batch.
+     */
+
+    int total_max_floats = 0;
+
+    for (Py_ssize_t i = 0; i < polyline_count; ++i)
+    {
+        PyObject *item =
+            PySequence_GetItem(polylines, i);
+
+        if (item == NULL)
+        {
+            for (Py_ssize_t j = 0; j < i; ++j)
+                Py_DECREF(arrays[j]);
+
+            PyMem_Free(arrays);
+            return NULL;
+        }
+
+        PyArrayObject *array =
+            (PyArrayObject *)PyArray_FROM_OTF(
+                item,
+                NPY_FLOAT32,
+                NPY_ARRAY_IN_ARRAY
+            );
+
+        Py_DECREF(item);
+
+        if (array == NULL)
+        {
+            for (Py_ssize_t j = 0; j < i; ++j)
+                Py_DECREF(arrays[j]);
+
+            PyMem_Free(arrays);
+            return NULL;
+        }
+
+        arrays[i] = array;
+
+        int point_count =
+            (int)PyArray_DIM(array, 0);
+
+        if (point_count >= 2)
+        {
+            total_max_floats +=
+                (point_count - 1) * 12;
+        }
+    }
+
+    int old_count = vertex_buffer->count;
+
+    if (!vertex_buffer_reserve(
+            vertex_buffer,
+            old_count + total_max_floats))
+    {
+        for (Py_ssize_t i = 0; i < polyline_count; ++i)
+            Py_DECREF(arrays[i]);
+
+        PyMem_Free(arrays);
+        return NULL;
+    }
+
+    float *cursor =
+        vertex_buffer_data(vertex_buffer) + old_count;
+
+    int written_total = 0;
+
+    for (Py_ssize_t i = 0; i < polyline_count; ++i)
+    {
+        PyArrayObject *array = arrays[i];
+
+        int point_count =
+            (int)PyArray_DIM(array, 0);
+
+        if (point_count >= 2)
+        {
+            float *packed_points =
+                (float *)PyArray_DATA(array);
+
+            int written =
+                stroke_build(
+                    packed_points,
+                    point_count,
+                    (float)(width * 0.5f),
+                    cursor
+                );
+
+            cursor += written;
+            written_total += written;
+        }
+
+        Py_DECREF(array);
+    }
+
+    PyMem_Free(arrays);
+
+    vertex_buffer->count =
+        old_count + written_total;
+
+    Py_RETURN_NONE;
+}
+
+/* --------------------------------------------------------- */
+
 static PyMethodDef methods[] = {
 
     {
         "build",
         build,
+        METH_VARARGS,
+        ""
+    },
+
+    {
+        "build_many",
+        build_many,
         METH_VARARGS,
         ""
     },

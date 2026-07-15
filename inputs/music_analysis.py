@@ -118,6 +118,10 @@ class MusicAnalyzer(AudioInput):
         latency=None,
         muted: bool = False,
         stereo: bool = False,
+        enable_band_waveforms: bool = True,
+        enable_vocal_analysis: bool = True,
+        enable_pitch_tracking: bool = True,
+        enable_harmony: bool = True,
     ):
 
         super().__init__(
@@ -134,6 +138,18 @@ class MusicAnalyzer(AudioInput):
             stereo=stereo,
         )
 
+        #
+        # Feature gates. Chord/key detection, pitch tracking and
+        # vocal-band analysis are expensive (several extra FFTs
+        # and per-tone template matching per audio callback) and
+        # most visual modes never read their outputs. Disable
+        # whatever a given mode doesn't use.
+        #
+
+        self.enable_band_waveforms = enable_band_waveforms
+        self.enable_vocal_analysis = enable_vocal_analysis
+        self.enable_pitch_tracking = enable_pitch_tracking
+        self.enable_harmony = enable_harmony
 
         self.bass: float = 0.0
         self.low_mid: float = 0.0
@@ -484,23 +500,27 @@ class MusicAnalyzer(AudioInput):
             release=0.2,
         )
 
-        self.low_waveform = np.fft.irfft(
-            spectrum_complex * self._low_wave_mask, n=self.block_size
-        ).astype(np.float32)
+        if self.enable_band_waveforms:
 
-        self.mid_waveform = np.fft.irfft(
-            spectrum_complex * self._mid_wave_mask, n=self.block_size
-        ).astype(np.float32)
+            self.low_waveform = np.fft.irfft(
+                spectrum_complex * self._low_wave_mask, n=self.block_size
+            ).astype(np.float32)
 
-        self.high_waveform = np.fft.irfft(
-            spectrum_complex * self._high_wave_mask, n=self.block_size
-        ).astype(np.float32)
+            self.mid_waveform = np.fft.irfft(
+                spectrum_complex * self._mid_wave_mask, n=self.block_size
+            ).astype(np.float32)
 
-        self.vocal_waveform = np.fft.irfft(
-            spectrum_complex * self._vocal_formant_mask, n=self.block_size
-        ).astype(np.float32)
+            self.high_waveform = np.fft.irfft(
+                spectrum_complex * self._high_wave_mask, n=self.block_size
+            ).astype(np.float32)
 
-        self._record_vocal_waveform(self.vocal_waveform)
+        if self.enable_vocal_analysis:
+
+            self.vocal_waveform = np.fft.irfft(
+                spectrum_complex * self._vocal_formant_mask, n=self.block_size
+            ).astype(np.float32)
+
+            self._record_vocal_waveform(self.vocal_waveform)
 
         total = float(magnitude.sum()) + 1e-9
 
@@ -550,6 +570,9 @@ class MusicAnalyzer(AudioInput):
 
         #
         # Percussive / harmonic separation.
+        #
+        # NOTE: kept unconditional - attack_hit (and beat_trigger
+        # fallback in mode3/mode4) depends on self.percussive.
         #
 
         self._mag_history[self._mag_history_index] = magnitude
@@ -643,138 +666,142 @@ class MusicAnalyzer(AudioInput):
             self.snare_energy, self._snare_avg, *self._SNARE_ONSET
         )
 
-        formant_magnitude = harmonic_component * self._vocal_formant_mask
+        if self.enable_vocal_analysis:
 
-        formant_energy = float(formant_magnitude.sum())
+            formant_magnitude = harmonic_component * self._vocal_formant_mask
 
-        presence_raw = float(
-            np.clip(formant_energy / (harmonic_energy + 1e-9), 0.0, 1.0)
-        )
+            formant_energy = float(formant_magnitude.sum())
 
-        presence_attack = 0.3 if presence_raw > self.vocal_presence else 0.08
-
-        self.vocal_presence += (presence_raw - self.vocal_presence) * presence_attack
-
-        formant_total = formant_energy + 1e-9
-
-        if formant_energy > 1e-6:
-
-            formant_centroid_hz = float(
-                (self._freqs * formant_magnitude).sum()
-            ) / formant_total
-
-            formant_centroid_hz = max(
-                formant_centroid_hz, self._VOCAL_FORMANT_MIN_HZ
+            presence_raw = float(
+                np.clip(formant_energy / (harmonic_energy + 1e-9), 0.0, 1.0)
             )
 
-            brightness = (
-                (np.log(formant_centroid_hz) - np.log(self._VOCAL_FORMANT_MIN_HZ))
-                / (
-                    np.log(self._VOCAL_FORMANT_MAX_HZ)
-                    - np.log(self._VOCAL_FORMANT_MIN_HZ)
+            presence_attack = 0.3 if presence_raw > self.vocal_presence else 0.08
+
+            self.vocal_presence += (presence_raw - self.vocal_presence) * presence_attack
+
+            formant_total = formant_energy + 1e-9
+
+            if formant_energy > 1e-6:
+
+                formant_centroid_hz = float(
+                    (self._freqs * formant_magnitude).sum()
+                ) / formant_total
+
+                formant_centroid_hz = max(
+                    formant_centroid_hz, self._VOCAL_FORMANT_MIN_HZ
                 )
+
+                brightness = (
+                    (np.log(formant_centroid_hz) - np.log(self._VOCAL_FORMANT_MIN_HZ))
+                    / (
+                        np.log(self._VOCAL_FORMANT_MAX_HZ)
+                        - np.log(self._VOCAL_FORMANT_MIN_HZ)
+                    )
+                )
+
+                brightness = float(np.clip(brightness, 0.0, 1.0))
+
+                self.vocal_brightness += (brightness - self.vocal_brightness) * 0.2
+
+            if self._prev_formant_magnitude is not None:
+
+                formant_rise = formant_magnitude - self._prev_formant_magnitude
+
+                formant_flux = float(np.maximum(formant_rise, 0.0).sum())
+
+            else:
+
+                formant_flux = 0.0
+
+            self._prev_formant_magnitude = formant_magnitude
+
+            self._formant_flux_peak = max(formant_flux, self._formant_flux_peak * 0.995)
+
+            formant_flux_norm = min(formant_flux / self._formant_flux_peak, 1.0)
+
+            vocal_activity_attack = 0.7 if formant_flux_norm > self.vocal_activity else 0.2
+
+            self.vocal_activity += (
+                formant_flux_norm - self.vocal_activity
+            ) * vocal_activity_attack
+
+            vocal_hit_raw, self._vocal_activity_avg = self._onset(
+                self.vocal_activity, self._vocal_activity_avg, *self._VOCAL_ONSET
             )
 
-            brightness = float(np.clip(brightness, 0.0, 1.0))
+            self.vocal_hit = bool(
+                vocal_hit_raw and self.vocal_presence > self._VOCAL_PRESENCE_FLOOR
+            )
 
-            self.vocal_brightness += (brightness - self.vocal_brightness) * 0.2
+            vocal_pitch = self._estimate_pitch(harmonic_component, self._vocal_pitch_mask)
 
-        if self._prev_formant_magnitude is not None:
+            if (
+                vocal_pitch is not None
+                and vocal_pitch[2] > self._PITCH_CONFIDENCE_FLOOR
+                and self.vocal_presence > self._VOCAL_PRESENCE_FLOOR
+            ):
 
-            formant_rise = formant_magnitude - self._prev_formant_magnitude
+                pitch_class, midi, confidence = vocal_pitch
 
-            formant_flux = float(np.maximum(formant_rise, 0.0).sum())
+                self.vocal_note_class = pitch_class
+                self.vocal_note_midi += (midi - self.vocal_note_midi) * 0.3
+                self.vocal_note_confidence += (
+                    confidence - self.vocal_note_confidence
+                ) * 0.3
 
-        else:
+            else:
 
-            formant_flux = 0.0
+                self.vocal_note_confidence *= 0.9
 
-        self._prev_formant_magnitude = formant_magnitude
+        if self.enable_pitch_tracking:
 
-        self._formant_flux_peak = max(formant_flux, self._formant_flux_peak * 0.995)
+            bass_pitch = self._estimate_pitch(
+                harmonic_component, self._bass_pitch_mask
+            )
 
-        formant_flux_norm = min(formant_flux / self._formant_flux_peak, 1.0)
+            if bass_pitch is not None and bass_pitch[2] > self._PITCH_CONFIDENCE_FLOOR:
 
-        vocal_activity_attack = 0.7 if formant_flux_norm > self.vocal_activity else 0.2
+                pitch_class, midi, confidence = bass_pitch
 
-        self.vocal_activity += (
-            formant_flux_norm - self.vocal_activity
-        ) * vocal_activity_attack
+                self.bass_note_class = pitch_class
+                self.bass_note_midi += (midi - self.bass_note_midi) * 0.3
+                self.bass_note_confidence += (
+                    confidence - self.bass_note_confidence
+                ) * 0.3
 
-        vocal_hit_raw, self._vocal_activity_avg = self._onset(
-            self.vocal_activity, self._vocal_activity_avg, *self._VOCAL_ONSET
-        )
+            else:
 
-        self.vocal_hit = bool(
-            vocal_hit_raw and self.vocal_presence > self._VOCAL_PRESENCE_FLOOR
-        )
+                self.bass_note_confidence *= 0.9
 
-        vocal_pitch = self._estimate_pitch(harmonic_component, self._vocal_pitch_mask)
+            melody_pitch = self._estimate_pitch(
+                harmonic_component, self._melody_pitch_mask
+            )
 
-        if (
-            vocal_pitch is not None
-            and vocal_pitch[2] > self._PITCH_CONFIDENCE_FLOOR
-            and self.vocal_presence > self._VOCAL_PRESENCE_FLOOR
-        ):
+            if (
+                melody_pitch is not None
+                and melody_pitch[2] > self._PITCH_CONFIDENCE_FLOOR
+            ):
 
-            pitch_class, midi, confidence = vocal_pitch
+                pitch_class, midi, confidence = melody_pitch
 
-            self.vocal_note_class = pitch_class
-            self.vocal_note_midi += (midi - self.vocal_note_midi) * 0.3
-            self.vocal_note_confidence += (
-                confidence - self.vocal_note_confidence
-            ) * 0.3
+                self.melody_note_class = pitch_class
+                self.melody_note_midi += (midi - self.melody_note_midi) * 0.35
+                self.melody_note_confidence += (
+                    confidence - self.melody_note_confidence
+                ) * 0.35
 
-        else:
+            else:
 
-            self.vocal_note_confidence *= 0.9
+                self.melody_note_confidence *= 0.9
 
-        bass_pitch = self._estimate_pitch(
-            harmonic_component, self._bass_pitch_mask
-        )
+            interval = abs(self.bass_note_class - self.melody_note_class) % 12
 
-        if bass_pitch is not None and bass_pitch[2] > self._PITCH_CONFIDENCE_FLOOR:
+            self.harmonic_interval = min(interval, 12 - interval)
 
-            pitch_class, midi, confidence = bass_pitch
-
-            self.bass_note_class = pitch_class
-            self.bass_note_midi += (midi - self.bass_note_midi) * 0.3
-            self.bass_note_confidence += (
-                confidence - self.bass_note_confidence
-            ) * 0.3
-
-        else:
-
-            self.bass_note_confidence *= 0.9
-
-        melody_pitch = self._estimate_pitch(
-            harmonic_component, self._melody_pitch_mask
-        )
-
-        if (
-            melody_pitch is not None
-            and melody_pitch[2] > self._PITCH_CONFIDENCE_FLOOR
-        ):
-
-            pitch_class, midi, confidence = melody_pitch
-
-            self.melody_note_class = pitch_class
-            self.melody_note_midi += (midi - self.melody_note_midi) * 0.35
-            self.melody_note_confidence += (
-                confidence - self.melody_note_confidence
-            ) * 0.35
-
-        else:
-
-            self.melody_note_confidence *= 0.9
-
-        interval = abs(self.bass_note_class - self.melody_note_class) % 12
-
-        self.harmonic_interval = min(interval, 12 - interval)
-
-        self.interval_consonance = float(
-            self._INTERVAL_CONSONANCE[self.harmonic_interval]
-        )
+            self.interval_consonance = float(
+                self._INTERVAL_CONSONANCE[self.harmonic_interval]
+            )
 
         if self._prev_percussive is not None:
 
@@ -876,40 +903,42 @@ class MusicAnalyzer(AudioInput):
 
         self.drop = was_low and self.energy_trend > 0.6
 
-        chroma = np.bincount(
-            self._pitch_classes_valid,
-            weights=magnitude[self._pitch_valid],
-            minlength=12,
-        ).astype(np.float32)
+        if self.enable_harmony:
 
-        chroma_total = float(chroma.sum()) + 1e-9
+            chroma = np.bincount(
+                self._pitch_classes_valid,
+                weights=magnitude[self._pitch_valid],
+                minlength=12,
+            ).astype(np.float32)
 
-        chroma /= chroma_total
+            chroma_total = float(chroma.sum()) + 1e-9
 
-        prev_chroma = self._chroma_smooth.copy()
+            chroma /= chroma_total
 
-        self._chroma_smooth += (chroma - self._chroma_smooth) * 0.15
+            prev_chroma = self._chroma_smooth.copy()
 
-        self.chroma = self._chroma_smooth
+            self._chroma_smooth += (chroma - self._chroma_smooth) * 0.15
 
-        prev_norm = float(np.linalg.norm(prev_chroma))
-        curr_norm = float(np.linalg.norm(self._chroma_smooth))
+            self.chroma = self._chroma_smooth
 
-        if prev_norm > 1e-6 and curr_norm > 1e-6:
+            prev_norm = float(np.linalg.norm(prev_chroma))
+            curr_norm = float(np.linalg.norm(self._chroma_smooth))
 
-            cosine = float(
-                np.dot(prev_chroma, self._chroma_smooth) / (prev_norm * curr_norm)
-            )
+            if prev_norm > 1e-6 and curr_norm > 1e-6:
 
-            change = float(np.clip(1.0 - cosine, 0.0, 1.0))
+                cosine = float(
+                    np.dot(prev_chroma, self._chroma_smooth) / (prev_norm * curr_norm)
+                )
 
-        else:
+                change = float(np.clip(1.0 - cosine, 0.0, 1.0))
 
-            change = 0.0
+            else:
 
-        self.harmonic_change += (change - self.harmonic_change) * 0.3
+                change = 0.0
 
-        self._update_key_and_chord()
+            self.harmonic_change += (change - self.harmonic_change) * 0.3
+
+            self._update_key_and_chord()
 
     # ---------------------------------------------------------
 
@@ -977,7 +1006,7 @@ class MusicAnalyzer(AudioInput):
         confidence = float(np.clip(peak_value / (autocorr[0] + 1e-9), 0.0, 1.0))
 
         if confidence < self._TEMPO_MIN_CONFIDENCE:
-            
+
             self.beat_confidence *= 0.9
 
             return
@@ -1060,7 +1089,7 @@ class MusicAnalyzer(AudioInput):
 
     @staticmethod
     def _build_chord_templates():
-        
+
         templates = np.zeros((24, 12), dtype=np.float32)
 
         for root in range(12):

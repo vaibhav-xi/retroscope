@@ -44,10 +44,20 @@ vertex_buffer_reserve(
         return 1;
     }
 
+    int new_capacity =
+        self->capacity > 0
+            ? self->capacity
+            : 64;
+
+    while (new_capacity < capacity)
+    {
+        new_capacity *= 2;
+    }
+
     float *new_vertices =
         PyMem_Realloc(
             self->vertices,
-            sizeof(float) * capacity
+            sizeof(float) * new_capacity
         );
 
     if (new_vertices == NULL)
@@ -57,7 +67,7 @@ vertex_buffer_reserve(
     }
 
     self->vertices = new_vertices;
-    self->capacity = capacity;
+    self->capacity = new_capacity;
 
     return 1;
 }
@@ -168,4 +178,3 @@ PyTypeObject VertexBufferType =
     .tp_members = VertexBuffer_members,
 
 };
-
