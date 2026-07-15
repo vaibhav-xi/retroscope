@@ -258,18 +258,25 @@ if NATIVE_AVAILABLE:
                 threat_strength=float(threat_strength),
             )
 
-        def neighbor_links(self, max_links: int, link_radius: float | None = None):
+        def neighbor_links(self, max_links: int, link_radius: float | None = None, center=(0.0, 0.0)):
 
             radius = (
                 link_radius if link_radius is not None
                 else self.neighbor_radius * 0.55
             )
 
-            return self._native.neighbor_links(int(max_links), float(radius))
+            cx, cy = center
 
-        def render_points(self):
+            return self._native.neighbor_links(
+                int(max_links), float(radius), center_x=float(cx), center_y=float(cy)
+            )
 
-            return self._native.render_points()
+        def render_points(self, center=(0.0, 0.0)):
+
+            cx, cy = center
+
+            return self._native.render_points(center_x=float(cx), center_y=float(cy))
+
 
 
     def lightning_bolt(origin, angle: float, length: float, depth: int, jitter=None, random=None):
@@ -322,6 +329,38 @@ if NATIVE_AVAILABLE:
             center_y=float(cy),
             close_loop=bool(close_loop),
         )
+        
+    def fixed_dashes(positions, dx: float, dy: float, center=(0.0, 0.0)):
+
+        cx, cy = center
+
+        return _native_audio.fixed_dashes(
+            positions,
+            dx=float(dx),
+            dy=float(dy),
+            center_x=float(cx),
+            center_y=float(cy),
+        )
+
+    def life_dashes(
+        positions,
+        life,
+        center=(0.0, 0.0),
+        size_base: float = 1.0,
+        size_scale: float = 1.0,
+    ):
+
+        cx, cy = center
+
+        return _native_audio.life_dashes(
+            positions,
+            life,
+            center_x=float(cx),
+            center_y=float(cy),
+            size_base=float(size_base),
+            size_scale=float(size_scale),
+        )
+
 
 else:
 
@@ -735,6 +774,49 @@ else:
 
         return points
 
+    def fixed_dashes(positions, dx: float, dy: float, center=(0.0, 0.0)):
+
+        cx, cy = center
+
+        positions = np.asarray(positions, dtype=np.float32)
+
+        return [
+            np.array(
+                [[x + cx, y + cy], [x + cx + dx, y + cy + dy]],
+                dtype=np.float32,
+            )
+            for x, y in positions
+        ]
+
+    def life_dashes(
+        positions,
+        life,
+        center=(0.0, 0.0),
+        size_base: float = 1.0,
+        size_scale: float = 1.0,
+    ):
+
+        cx, cy = center
+
+        positions = np.asarray(positions, dtype=np.float32)
+        life = np.asarray(life, dtype=np.float32)
+
+        out = []
+
+        for (x, y), l in zip(positions, life):
+
+            size = size_base + l * size_scale
+
+            out.append(
+                np.array(
+                    [[x + cx - size, y + cy], [x + cx + size, y + cy]],
+                    dtype=np.float32,
+                )
+            )
+
+        return out
+
+
 
 __all__ = [
     "EmberField",
@@ -746,6 +828,8 @@ __all__ = [
     "subdivide_triangle",
     "radial_ring",
     "NATIVE_AVAILABLE",
-    "BoidSwarm"
+    "BoidSwarm",
+    "fixed_dashes",
+    "life_dashes"
 ]
 

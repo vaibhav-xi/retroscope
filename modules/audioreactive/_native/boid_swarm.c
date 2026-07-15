@@ -309,11 +309,16 @@ BoidSwarm_neighbor_links(
 {
     int max_links;
     double link_radius;
+    double center_x = 0.0;
+    double center_y = 0.0;
 
-    static char *keywords[] = { "max_links", "link_radius", NULL };
+    static char *keywords[] = {
+        "max_links", "link_radius", "center_x", "center_y", NULL
+    };
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "id", keywords, &max_links, &link_radius))
+            args, kwds, "id|dd", keywords,
+            &max_links, &link_radius, &center_x, &center_y))
     {
         return NULL;
     }
@@ -377,6 +382,9 @@ BoidSwarm_neighbor_links(
         return NULL;
     }
 
+    float fcx = (float)center_x;
+    float fcy = (float)center_y;
+
     for (int k = 0; k < count; k++)
     {
         int i = candidates[k].i;
@@ -396,10 +404,10 @@ BoidSwarm_neighbor_links(
 
         float *data = (float *)PyArray_DATA(points);
 
-        data[0] = self->pos_x[i];
-        data[1] = self->pos_y[i];
-        data[2] = self->pos_x[j];
-        data[3] = self->pos_y[j];
+        data[0] = self->pos_x[i] + fcx;
+        data[1] = self->pos_y[i] + fcy;
+        data[2] = self->pos_x[j] + fcx;
+        data[3] = self->pos_y[j] + fcy;
 
         PyList_SET_ITEM(result, k, (PyObject *)points);
     }
@@ -409,14 +417,27 @@ BoidSwarm_neighbor_links(
     return result;
 }
 
-/* --------------------------------------------------------- */
-
 static PyObject *
 BoidSwarm_render_points(
     BoidSwarmObject *self,
-    PyObject *Py_UNUSED(ignored)
+    PyObject *args,
+    PyObject *kwds
 )
 {
+    double center_x = 0.0;
+    double center_y = 0.0;
+
+    static char *keywords[] = { "center_x", "center_y", NULL };
+
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "|dd", keywords, &center_x, &center_y))
+    {
+        return NULL;
+    }
+
+    float fcx = (float)center_x;
+    float fcy = (float)center_y;
+
     int n = self->capacity;
 
     PyObject *result = PyList_New(n);
@@ -441,8 +462,8 @@ BoidSwarm_render_points(
         float perp_x = -dir_y;
         float perp_y = dir_x;
 
-        float px = self->pos_x[i];
-        float py = self->pos_y[i];
+        float px = self->pos_x[i] + fcx;
+        float py = self->pos_y[i] + fcy;
 
         float nose_x = px + dir_x * size;
         float nose_y = py + dir_y * size;
@@ -519,7 +540,7 @@ static PyMethodDef BoidSwarm_methods[] =
     {
         "render_points",
         (PyCFunction)BoidSwarm_render_points,
-        METH_NOARGS,
+        METH_VARARGS | METH_KEYWORDS,
         "Per-boid arrow-shaped outline (nose/left/right/nose)."
     },
     { NULL, NULL, 0, NULL }

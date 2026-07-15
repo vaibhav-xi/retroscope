@@ -12,6 +12,7 @@
 #include "fractal.h"
 #include "radial_ring.h"
 #include "boid_swarm.h"
+#include "segments.h"
 
 static PyMethodDef methods[] =
 {
@@ -38,6 +39,18 @@ static PyMethodDef methods[] =
         (PyCFunction)fractal_subdivide_triangle,
         METH_VARARGS | METH_KEYWORDS,
         "Recursive Sierpinski-style triangle subdivision."
+    },
+    {
+        "fixed_dashes",
+        (PyCFunction)segments_fixed_dashes,
+        METH_VARARGS | METH_KEYWORDS,
+        "Per-point fixed-offset 2-point line segments."
+    },
+    {
+        "life_dashes",
+        (PyCFunction)segments_life_dashes,
+        METH_VARARGS | METH_KEYWORDS,
+        "Per-point life-scaled horizontal 2-point line segments."
     },
     { NULL, NULL, 0, NULL }
 };

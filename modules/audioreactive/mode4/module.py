@@ -17,12 +17,11 @@ from render_es2.material import Material
 
 from inputs.music_analysis import MusicAnalyzer
 
-from modules.audioreactive.native import BoidSwarm
 from .growth import GrowthTree
 from .comet import PulseComet
 from .sparks import CometSparks
 from .colors import hsv
-
+from modules.audioreactive.native import BoidSwarm, life_dashes
 
 # _IS_DESKTOP = platform.system() == "Darwin"
 _IS_DESKTOP = True
@@ -405,12 +404,7 @@ class AudioReactiveMode4(Module):
 
         self.boid_renderable.clear()
 
-        for points in self.boids.render_points():
-
-            points = points.copy()
-
-            points[:, 0] += cx
-            points[:, 1] += cy
+        for points in self.boids.render_points(center=(cx, cy)):
 
             self.boid_renderable.add(Polyline(points=points))
 
@@ -421,12 +415,7 @@ class AudioReactiveMode4(Module):
 
         self.link_renderable.clear()
 
-        for points in self.boids.neighbor_links(max_links=_MAX_BOID_LINKS):
-
-            points = points.copy()
-
-            points[:, 0] += cx
-            points[:, 1] += cy
+        for points in self.boids.neighbor_links(max_links=_MAX_BOID_LINKS, center=(cx, cy)):
 
             self.link_renderable.add(Polyline(points=points))
 
@@ -461,21 +450,11 @@ class AudioReactiveMode4(Module):
 
         spark_positions, spark_life = self.sparks.points()
 
-        for (x, y), life in zip(spark_positions, spark_life):
+        for points in life_dashes(
+            spark_positions, spark_life, center=(cx, cy), size_base=1.0, size_scale=3.0
+        ):
 
-            size = 1.0 + life * 3.0
-
-            self.spark_renderable.add(
-                Polyline(
-                    points=np.array(
-                        [
-                            [cx + x - size, cy + y],
-                            [cx + x + size, cy + y],
-                        ],
-                        dtype=np.float32,
-                    )
-                )
-            )
+            self.spark_renderable.add(Polyline(points=points))
 
         #
         # Submit renderables, back to front.

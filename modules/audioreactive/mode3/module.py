@@ -20,6 +20,7 @@ from .attractor import DustAttractor
 from .shockwave import ShockwaveField
 from .web import web_rings, web_spokes
 from .sparks import SparkBurst
+from modules.audioreactive.native import fixed_dashes, life_dashes
 
 # _IS_DESKTOP = platform.system() == "Darwin"
 _IS_DESKTOP = True
@@ -233,9 +234,6 @@ class AudioReactiveMode3(Module):
 
         positions = self.shockwaves.kick(positions, (0.0, 0.0))
 
-        positions[:, 0] += cx
-        positions[:, 1] += cy
-
         self.dust_renderable.material = Material(
             color=_lerp_color(
                 self._dim_color,
@@ -247,16 +245,9 @@ class AudioReactiveMode3(Module):
 
         self.dust_renderable.clear()
 
-        for x, y in positions:
+        for points in fixed_dashes(positions, dx=0.6, dy=0.6, center=(cx, cy)):
 
-            self.dust_renderable.add(
-                Polyline(
-                    points=np.array(
-                        [[x, y], [x + 0.6, y + 0.6]],
-                        dtype=np.float32,
-                    )
-                )
-            )
+            self.dust_renderable.add(Polyline(points=points))
 
         self.web_renderable.clear()
 
@@ -289,21 +280,11 @@ class AudioReactiveMode3(Module):
 
         spark_positions, spark_life = self.sparks.points()
 
-        for (x, y), life in zip(spark_positions, spark_life):
+        for points in life_dashes(
+            spark_positions, spark_life, center=(cx, cy), size_base=2.0, size_scale=4.0
+        ):
 
-            size = 2.0 + life * 4.0
-
-            self.spark_renderable.add(
-                Polyline(
-                    points=np.array(
-                        [
-                            [cx + x - size, cy + y],
-                            [cx + x + size, cy + y],
-                        ],
-                        dtype=np.float32,
-                    )
-                )
-            )
+            self.spark_renderable.add(Polyline(points=points))
 
         frame.add_renderable(self.dust_renderable, Layer.BACKGROUND)
         frame.add_renderable(self.web_renderable, Layer.MAIN)

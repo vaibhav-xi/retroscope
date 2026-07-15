@@ -13,6 +13,7 @@ module = Extension(
         "fractal.c",
         "radial_ring.c",
         "boid_swarm.c",
+        "segments.c",
         "wrapper.c",
     ],
     include_dirs=[

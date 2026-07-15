@@ -190,7 +190,9 @@ class BoidSwarm:
 
     # ---------------------------------------------------------
 
-    def neighbor_links(self, max_links: int, link_radius: float | None = None):
+    def neighbor_links(self, max_links: int, link_radius: float | None = None, center=(0.0, 0.0)):
+
+        cx, cy = center
 
         radius = link_radius if link_radius is not None else self.neighbor_radius * 0.55
 
@@ -220,15 +222,17 @@ class BoidSwarm:
 
             yield np.array(
                 [
-                    [self.pos_x[i], self.pos_y[i]],
-                    [self.pos_x[j], self.pos_y[j]],
+                    [self.pos_x[i] + cx, self.pos_y[i] + cy],
+                    [self.pos_x[j] + cx, self.pos_y[j] + cy],
                 ],
                 dtype=np.float32,
             )
 
     # ---------------------------------------------------------
 
-    def render_points(self):
+    def render_points(self, center=(0.0, 0.0)):
+
+        cx, cy = center
 
         speed = np.hypot(self.vel_x, self.vel_y) + 1e-6
 
@@ -243,26 +247,18 @@ class BoidSwarm:
         for i in range(self.capacity):
 
             nose = (
-                self.pos_x[i] + dir_x[i] * size,
-                self.pos_y[i] + dir_y[i] * size,
+                cx + self.pos_x[i] + dir_x[i] * size,
+                cy + self.pos_y[i] + dir_y[i] * size,
             )
 
             left = (
-                self.pos_x[i]
-                - dir_x[i] * size * 0.6
-                + perp_x[i] * size * 0.5,
-                self.pos_y[i]
-                - dir_y[i] * size * 0.6
-                + perp_y[i] * size * 0.5,
+                cx + self.pos_x[i] - dir_x[i] * size * 0.6 + perp_x[i] * size * 0.5,
+                cy + self.pos_y[i] - dir_y[i] * size * 0.6 + perp_y[i] * size * 0.5,
             )
 
             right = (
-                self.pos_x[i]
-                - dir_x[i] * size * 0.6
-                - perp_x[i] * size * 0.5,
-                self.pos_y[i]
-                - dir_y[i] * size * 0.6
-                - perp_y[i] * size * 0.5,
+                cx + self.pos_x[i] - dir_x[i] * size * 0.6 - perp_x[i] * size * 0.5,
+                cy + self.pos_y[i] - dir_y[i] * size * 0.6 - perp_y[i] * size * 0.5,
             )
 
             yield np.array(
