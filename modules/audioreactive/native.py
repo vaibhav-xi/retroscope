@@ -207,6 +207,70 @@ if NATIVE_AVAILABLE:
             cx, cy = center
 
             return self._native.points(float(cx), float(cy), float(scale))
+        
+    class BoidSwarm:
+
+        def __init__(self, capacity: int, random, neighbor_radius: float = 70.0):
+
+            seed = random.getrandbits(32) if random is not None else 0
+
+            self._native = _native_audio.BoidSwarm(
+                capacity,
+                neighbor_radius=float(neighbor_radius),
+                seed=seed,
+            )
+
+            self.capacity = capacity
+            self.random = random
+            self.neighbor_radius = neighbor_radius
+
+        def update(
+            self,
+            dt: float,
+            focus,
+            cohesion: float,
+            alignment: float,
+            separation: float,
+            jitter: float,
+            max_speed: float,
+            threat=None,
+            threat_strength: float = 0.0,
+        ):
+
+            fx, fy = focus
+
+            has_threat = threat is not None
+
+            tx, ty = threat if has_threat else (0.0, 0.0)
+
+            self._native.update(
+                dt=float(dt),
+                focus_x=float(fx),
+                focus_y=float(fy),
+                cohesion=float(cohesion),
+                alignment=float(alignment),
+                separation=float(separation),
+                jitter=float(jitter),
+                max_speed=float(max_speed),
+                has_threat=bool(has_threat),
+                threat_x=float(tx),
+                threat_y=float(ty),
+                threat_strength=float(threat_strength),
+            )
+
+        def neighbor_links(self, max_links: int, link_radius: float | None = None):
+
+            radius = (
+                link_radius if link_radius is not None
+                else self.neighbor_radius * 0.55
+            )
+
+            return self._native.neighbor_links(int(max_links), float(radius))
+
+        def render_points(self):
+
+            return self._native.render_points()
+
 
     def lightning_bolt(origin, angle: float, length: float, depth: int, jitter=None, random=None):
 
@@ -268,6 +332,7 @@ else:
 
     from modules.audioreactive.mode1.particles import EmberField
     from modules.audioreactive.mode1.spectrum import spectrum_ring
+    from modules.audioreactive.mode4.boids import BoidSwarm
 
     class BurstField:
 
@@ -681,5 +746,6 @@ __all__ = [
     "subdivide_triangle",
     "radial_ring",
     "NATIVE_AVAILABLE",
+    "BoidSwarm"
 ]
 

@@ -11,6 +11,7 @@
 #include "chaos_field.h"
 #include "fractal.h"
 #include "radial_ring.h"
+#include "boid_swarm.h"
 
 static PyMethodDef methods[] =
 {
@@ -70,6 +71,7 @@ PyInit__native(void)
     if (PyType_Ready(&BurstFieldType) < 0) return NULL;
     if (PyType_Ready(&RingFieldType) < 0) return NULL;
     if (PyType_Ready(&ChaosFieldType) < 0) return NULL;
+    if (PyType_Ready(&BoidSwarmType) < 0) return NULL;
 
     Py_INCREF(&EmberFieldType);
     PyModule_AddObject(module, "EmberField", (PyObject *)&EmberFieldType);
@@ -82,6 +84,9 @@ PyInit__native(void)
 
     Py_INCREF(&ChaosFieldType);
     PyModule_AddObject(module, "ChaosField", (PyObject *)&ChaosFieldType);
+
+    Py_INCREF(&BoidSwarmType);
+    PyModule_AddObject(module, "BoidSwarm", (PyObject *)&BoidSwarmType);
 
     return module;
 }

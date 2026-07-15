@@ -12,6 +12,7 @@ module = Extension(
         "chaos_field.c",
         "fractal.c",
         "radial_ring.c",
+        "boid_swarm.c",
         "wrapper.c",
     ],
     include_dirs=[

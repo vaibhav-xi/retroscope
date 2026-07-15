@@ -17,14 +17,15 @@ from render_es2.material import Material
 
 from inputs.music_analysis import MusicAnalyzer
 
-from .boids import BoidSwarm
+from modules.audioreactive.native import BoidSwarm
 from .growth import GrowthTree
 from .comet import PulseComet
 from .sparks import CometSparks
 from .colors import hsv
 
 
-_IS_DESKTOP = platform.system() == "Darwin"
+# _IS_DESKTOP = platform.system() == "Darwin"
+_IS_DESKTOP = True
 
 _SPECTRUM_RESOLUTION = 64 if _IS_DESKTOP else 32
 

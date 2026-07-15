@@ -1,40 +1,3 @@
-"""
-RetroScope
-
-Audio Reactive - Mode 2
-
-A denser, more musically-aware companion to Mode 1.
-
-Where Mode 1 treats audio as a single loudness signal plus one
-spectrum curve, Mode 2 splits it into named frequency ranges
-(bass, low_mid, mid, high_mid, high - see inputs/music_analysis.py)
-and reacts to each one differently:
-
-    bass   -> pulse tunnel shells + harmonograph's widest arm +
-              orbit ring spawns
-    mid    -> nested kaleidoscope rings + harmonograph's middle
-              arm + orbit ring radius
-    high   -> lightning bolts + harmonograph's tightest arm +
-              orbit ring speed
-    flux   -> occasional extra lightning on any strong transient,
-              even ones that don't cleanly belong to one band
-    centroid (spectral brightness) -> blends the harmonograph's
-              color between the theme's dim and bright trace
-              colors, so the whole thing visibly "whitens" when
-              the mix turns trebly
-
-Everything is still built from Polylines - the only primitive
-with a GPU builder today (render/builder_registry.py) - and each
-system is batched into a single Renderable, so this mode costs
-the same handful of draw calls as Mode 1 regardless of how much
-geometry is on screen. Vertex counts are tiered down on anything
-that isn't a Mac (the Raspberry Pi 3B target).
-
-Simulation only.
-No OpenGL.
-No GPU calls.
-"""
-
 from __future__ import annotations
 
 import math
@@ -59,7 +22,8 @@ from .tunnel import PulseTunnel
 from .lightning import LightningField
 from .orbit import OrbitField
 
-_IS_DESKTOP = platform.system() == "Darwin"
+# _IS_DESKTOP = platform.system() == "Darwin"
+_IS_DESKTOP = True
 
 _SPECTRUM_RESOLUTION = 128 if _IS_DESKTOP else 64
 _HARMONOGRAPH_POINTS = 600 if _IS_DESKTOP else 260
@@ -244,14 +208,7 @@ class AudioReactiveMode2(Module):
                 min_length=40.0,
                 max_length=90.0 + audio.high * 60.0,
             )
-
-        #
-        # A harmony/chord shift (harmonic_change) is a more musically
-        # grounded trigger for "something changed" than raw broadband
-        # flux, which fires on any strong transient regardless of
-        # whether it's tonal.
-        #
-
+            
         if (
             audio.harmonic_change > 0.5
             and context.random.random() < dt * 4.0

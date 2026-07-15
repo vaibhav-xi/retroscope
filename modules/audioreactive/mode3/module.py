@@ -21,7 +21,8 @@ from .shockwave import ShockwaveField
 from .web import web_rings, web_spokes
 from .sparks import SparkBurst
 
-_IS_DESKTOP = platform.system() == "Darwin"
+# _IS_DESKTOP = platform.system() == "Darwin"
+_IS_DESKTOP = True
 
 _SPECTRUM_RESOLUTION = 128 if _IS_DESKTOP else 64
 
