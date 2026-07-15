@@ -10,7 +10,7 @@ import config
 from core.module import Module
 from core.frame import Layer
 
-from render.primitives import Polyline
+from render.primitives import Polyline, PolylineBatch
 from render.renderable import Renderable
 from render_es2.material import Material
 
@@ -249,9 +249,11 @@ class AudioReactiveMode3(Module):
 
         self.dust_renderable.clear()
 
-        for points in fixed_dashes(positions, dx=0.6, dy=0.6, center=(cx, cy)):
-
-            self.dust_renderable.add(Polyline(points=points))
+        self.dust_renderable.add(
+            PolylineBatch(
+                points=fixed_dashes(positions, dx=0.6, dy=0.6, center=(cx, cy))
+            )
+        )
 
         self.web_renderable.clear()
 
@@ -284,11 +286,13 @@ class AudioReactiveMode3(Module):
 
         spark_positions, spark_life = self.sparks.points()
 
-        for points in life_dashes(
-            spark_positions, spark_life, center=(cx, cy), size_base=2.0, size_scale=4.0
-        ):
-
-            self.spark_renderable.add(Polyline(points=points))
+        self.spark_renderable.add(
+            PolylineBatch(
+                points=life_dashes(
+                    spark_positions, spark_life, center=(cx, cy), size_base=2.0, size_scale=4.0
+                )
+            )
+        )
 
         frame.add_renderable(self.dust_renderable, Layer.BACKGROUND)
         frame.add_renderable(self.web_renderable, Layer.MAIN)

@@ -11,7 +11,7 @@ import config
 from core.module import Module
 from core.frame import Layer
 
-from render.primitives import Polyline
+from render.primitives import Polyline, PolylineBatch
 from render.renderable import Renderable
 from render_es2.material import Material
 
@@ -454,11 +454,13 @@ class AudioReactiveMode4(Module):
 
         spark_positions, spark_life = self.sparks.points()
 
-        for points in life_dashes(
-            spark_positions, spark_life, center=(cx, cy), size_base=1.0, size_scale=3.0
-        ):
-
-            self.spark_renderable.add(Polyline(points=points))
+        self.spark_renderable.add(
+            PolylineBatch(
+                points=life_dashes(
+                    spark_positions, spark_life, center=(cx, cy), size_base=1.0, size_scale=3.0
+                )
+            )
+        )
 
         #
         # Submit renderables, back to front.

@@ -9,7 +9,7 @@ The renderer never needs to know about individual primitive
 types. New primitives simply register a new builder.
 """
 
-from render.primitives import Polyline
+from render.primitives import Polyline, PolylineBatch
 
 from render_es2.stroke_builder import StrokeBuilder
 
@@ -54,6 +54,14 @@ class BuilderRegistry:
 BuilderRegistry.register(
 
     Polyline,
+
+    StrokeBuilder,
+
+)
+
+BuilderRegistry.register(
+
+    PolylineBatch,
 
     StrokeBuilder,
 

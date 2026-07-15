@@ -780,13 +780,12 @@ else:
 
         positions = np.asarray(positions, dtype=np.float32)
 
-        return [
-            np.array(
-                [[x + cx, y + cy], [x + cx + dx, y + cy + dy]],
-                dtype=np.float32,
-            )
-            for x, y in positions
-        ]
+        offset = np.array([cx, cy], dtype=np.float32)
+
+        starts = positions + offset
+        ends = starts + np.array([dx, dy], dtype=np.float32)
+
+        return np.stack([starts, ends], axis=1).astype(np.float32)
 
     def life_dashes(
         positions,
@@ -801,20 +800,15 @@ else:
         positions = np.asarray(positions, dtype=np.float32)
         life = np.asarray(life, dtype=np.float32)
 
-        out = []
+        x = positions[:, 0] + cx
+        y = positions[:, 1] + cy
 
-        for (x, y), l in zip(positions, life):
+        size = size_base + life * size_scale
 
-            size = size_base + l * size_scale
+        starts = np.column_stack([x - size, y]).astype(np.float32)
+        ends = np.column_stack([x + size, y]).astype(np.float32)
 
-            out.append(
-                np.array(
-                    [[x + cx - size, y + cy], [x + cx + size, y + cy]],
-                    dtype=np.float32,
-                )
-            )
-
-        return out
+        return np.stack([starts, ends], axis=1).astype(np.float32)
 
 
 

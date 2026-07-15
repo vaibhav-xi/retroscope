@@ -15,69 +15,112 @@ try:
 
         @staticmethod
         def build(
-            polyline,
+            primitive,
             vertex_buffer,
         ):
 
-            NativeBuild(
+            if primitive.points.ndim == 3:
 
-                polyline.points,
+                # PolylineBatch: many (P, 2) polylines at once.
 
-                2.0,
+                NativeBuildMany(
+                    primitive.points,
+                    2.0,
+                    vertex_buffer,
+                )
 
-                vertex_buffer,
+            else:
 
-            )
+                NativeBuild(
+                    primitive.points,
+                    2.0,
+                    vertex_buffer,
+                )
 
         @staticmethod
         def build_many(
-            polylines,
+            primitives,
             vertex_buffer,
             width=2.0,
         ):
             """
-            Build every polyline in `polylines` into `vertex_buffer`
-            in a single native call, instead of one call (and one
-            reserve) per primitive.
+            Build every Polyline/PolylineBatch in `primitives` into
+            `vertex_buffer` in a single native call. PolylineBatch
+            entries are expanded into their individual segments so a
+            renderable mixing single polylines and dash batches
+            still ends up as one native call.
             """
 
+            if (
+                len(primitives) == 1
+                and primitives[0].points.ndim == 3
+            ):
+
+                NativeBuildMany(
+                    primitives[0].points,
+                    float(width),
+                    vertex_buffer,
+                )
+
+                return
+
+            parts = []
+
+            for primitive in primitives:
+
+                if primitive.points.ndim == 3:
+
+                    parts.extend(primitive.points)
+
+                else:
+
+                    parts.append(primitive.points)
+
             NativeBuildMany(
-
-                [p.points for p in polylines],
-
+                parts,
                 float(width),
-
                 vertex_buffer,
-
             )
 
 except ImportError:
 
     from .stroke_builder_python import StrokeBuilder as PythonBuilder
+    from render.primitives import Polyline
 
     class StrokeBuilder:
 
         @staticmethod
         def build(
-            polyline,
+            primitive,
             vertex_buffer,
         ):
 
-            PythonBuilder.build(
-                polyline,
-                vertex_buffer,
-            )
+            if primitive.points.ndim == 3:
+
+                for points in primitive.points:
+
+                    PythonBuilder.build(
+                        Polyline(points=points),
+                        vertex_buffer,
+                    )
+
+            else:
+
+                PythonBuilder.build(
+                    primitive,
+                    vertex_buffer,
+                )
 
         @staticmethod
         def build_many(
-            polylines,
+            primitives,
             vertex_buffer,
             width=2.0,
         ):
 
-            for polyline in polylines:
+            for primitive in primitives:
 
-                PythonBuilder.build(
-                    polyline,
+                StrokeBuilder.build(
+                    primitive,
                     vertex_buffer,
                 )

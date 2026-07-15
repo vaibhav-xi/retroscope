@@ -58,6 +58,38 @@ class Polyline(Primitive):
 
 
 # ==========================================================
+# PolylineBatch
+# ==========================================================
+
+@dataclass
+class PolylineBatch(Primitive):
+    """
+    Many independent polylines sharing the same point count (e.g.
+    hundreds of 2-point dash segments). `points` has shape
+    (N, P, 2): N polylines of P points each.
+
+    Exists so effects that emit hundreds of tiny strokes per frame
+    (dash fields, particle fans) hand them to the renderer as one
+    primitive instead of constructing N separate `Polyline`
+    objects every frame.
+    """
+
+    points: np.ndarray
+
+    def __post_init__(self):
+
+        self.points = np.ascontiguousarray(
+            self.points,
+            dtype=np.float32,
+        )
+
+        if self.points.ndim != 3 or self.points.shape[2] != 2:
+            raise ValueError(
+                "PolylineBatch.points must have shape (N, P, 2)"
+            )
+
+
+# ==========================================================
 # Circle
 # ==========================================================
 

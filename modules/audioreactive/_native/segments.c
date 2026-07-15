@@ -54,7 +54,18 @@ segments_fixed_dashes(
     float fcx = (float)center_x;
     float fcy = (float)center_y;
 
-    PyObject *result = PyList_New(n);
+    /*
+     * Single (N, 2, 2) array instead of a Python list of N
+     * separate (2, 2) arrays. One allocation for the whole batch
+     * instead of N, and callers can hand the whole thing straight
+     * to the batched stroke builder without ever materializing
+     * per-dash Python objects.
+     */
+
+    npy_intp dims[3] = { n, 2, 2 };
+
+    PyArrayObject *result =
+        (PyArrayObject *)PyArray_SimpleNew(3, dims, NPY_FLOAT32);
 
     if (result == NULL)
     {
@@ -62,36 +73,24 @@ segments_fixed_dashes(
         return NULL;
     }
 
+    float *dst = (float *)PyArray_DATA(result);
+
     for (npy_intp p = 0; p < n; p++)
     {
         float x = src[p * 2 + 0] + fcx;
         float y = src[p * 2 + 1] + fcy;
 
-        npy_intp dims[2] = { 2, 2 };
+        float *out = dst + p * 4;
 
-        PyArrayObject *points =
-            (PyArrayObject *)PyArray_SimpleNew(2, dims, NPY_FLOAT32);
-
-        if (points == NULL)
-        {
-            Py_DECREF(result);
-            Py_DECREF(positions);
-            return NULL;
-        }
-
-        float *data = (float *)PyArray_DATA(points);
-
-        data[0] = x;
-        data[1] = y;
-        data[2] = x + fdx;
-        data[3] = y + fdy;
-
-        PyList_SET_ITEM(result, p, (PyObject *)points);
+        out[0] = x;
+        out[1] = y;
+        out[2] = x + fdx;
+        out[3] = y + fdy;
     }
 
     Py_DECREF(positions);
 
-    return result;
+    return (PyObject *)result;
 }
 
 PyObject *
@@ -160,7 +159,10 @@ segments_life_dashes(
     float fbase = (float)size_base;
     float fscale = (float)size_scale;
 
-    PyObject *result = PyList_New(n);
+    npy_intp dims[3] = { n, 2, 2 };
+
+    PyArrayObject *result =
+        (PyArrayObject *)PyArray_SimpleNew(3, dims, NPY_FLOAT32);
 
     if (result == NULL)
     {
@@ -169,6 +171,8 @@ segments_life_dashes(
         return NULL;
     }
 
+    float *dst = (float *)PyArray_DATA(result);
+
     for (npy_intp p = 0; p < n; p++)
     {
         float x = pos_data[p * 2 + 0] + fcx;
@@ -176,31 +180,16 @@ segments_life_dashes(
 
         float size = fbase + life_data[p] * fscale;
 
-        npy_intp dims[2] = { 2, 2 };
+        float *out = dst + p * 4;
 
-        PyArrayObject *points =
-            (PyArrayObject *)PyArray_SimpleNew(2, dims, NPY_FLOAT32);
-
-        if (points == NULL)
-        {
-            Py_DECREF(result);
-            Py_DECREF(positions);
-            Py_DECREF(life);
-            return NULL;
-        }
-
-        float *data = (float *)PyArray_DATA(points);
-
-        data[0] = x - size;
-        data[1] = y;
-        data[2] = x + size;
-        data[3] = y;
-
-        PyList_SET_ITEM(result, p, (PyObject *)points);
+        out[0] = x - size;
+        out[1] = y;
+        out[2] = x + size;
+        out[3] = y;
     }
 
     Py_DECREF(positions);
     Py_DECREF(life);
 
-    return result;
+    return (PyObject *)result;
 }

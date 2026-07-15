@@ -7,6 +7,8 @@ This file should remain as small as possible.
 Its only responsibility is to start the engine.
 """
 
+import gc
+
 from core.app import App
 
 
@@ -14,6 +16,8 @@ def main() -> None:
     """
     Application entry point.
     """
+
+    gc.disable()
 
     app = App()
 
