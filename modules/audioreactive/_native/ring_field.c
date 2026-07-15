@@ -90,17 +90,21 @@ RingField_spawn(
     double spin_max = 0.0;
     double lifetime_base = 0.5;
     double lifetime_coefficient = 0.03;
+    int randomize_rotation = 1;
+    double start_rotation = 0.0;
 
     static char *keywords[] = {
         "strength", "speed", "wobble", "start_radius",
         "spin_min", "spin_max", "lifetime_base", "lifetime_coefficient",
+        "randomize_rotation", "start_rotation",
         NULL
     };
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwds, "dd|dddddd", keywords,
+            args, kwds, "dd|ddddddpd", keywords,
             &strength, &speed, &wobble, &start_radius,
-            &spin_min, &spin_max, &lifetime_base, &lifetime_coefficient))
+            &spin_min, &spin_max, &lifetime_base, &lifetime_coefficient,
+            &randomize_rotation, &start_rotation))
     {
         return NULL;
     }
@@ -113,7 +117,11 @@ RingField_spawn(
     self->speed[i] = (float)speed;
     self->strength[i] = (float)strength;
     self->wobble[i] = (float)wobble;
-    self->rotation[i] = rng_uniform(&self->rng, 0.0f, (float)(2.0 * M_PI));
+
+    self->rotation[i] = randomize_rotation
+        ? rng_uniform(&self->rng, 0.0f, (float)(2.0 * M_PI))
+        : (float)start_rotation;
+
     self->spin[i] = rng_uniform(&self->rng, (float)spin_min, (float)spin_max);
     self->age[i] = 0.0f;
     self->lifetime[i] =
@@ -336,6 +344,81 @@ RingField_shells(
 
 /* --------------------------------------------------------- */
 
+static PyObject *
+RingField_kick(
+    RingFieldObject *self,
+    PyObject *args,
+    PyObject *kwds
+)
+{
+    PyObject *positions_obj;
+    double cx, cy;
+    double gain = 1.0;
+    double band = 16.0;
+
+    static char *keywords[] = { "positions", "cx", "cy", "gain", "band", NULL };
+
+    if (!PyArg_ParseTupleAndKeywords(
+            args, kwds, "Odd|dd", keywords,
+            &positions_obj, &cx, &cy, &gain, &band))
+    {
+        return NULL;
+    }
+
+    PyArrayObject *positions = (PyArrayObject *)PyArray_FROM_OTF(
+        positions_obj, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY | NPY_ARRAY_FORCECAST);
+
+    if (positions == NULL)
+    {
+        return NULL;
+    }
+
+    if (PyArray_NDIM(positions) != 2 || PyArray_DIM(positions, 1) != 2)
+    {
+        PyErr_SetString(PyExc_ValueError, "positions must have shape (N, 2)");
+        Py_DECREF(positions);
+        return NULL;
+    }
+
+    npy_intp n = PyArray_DIM(positions, 0);
+    float *data = (float *)PyArray_DATA(positions);
+
+    float fcx = (float)cx;
+    float fcy = (float)cy;
+    float fgain = (float)gain;
+    float fband = (float)band;
+
+    for (npy_intp p = 0; p < n; p++)
+    {
+        float dx = data[p * 2 + 0] - fcx;
+        float dy = data[p * 2 + 1] - fcy;
+
+        float dist = sqrtf(dx * dx + dy * dy) + 1e-6f;
+
+        for (int i = 0; i < self->capacity; i++)
+        {
+            if (!self->alive[i])
+            {
+                continue;
+            }
+
+            if (fabsf(dist - self->radius[i]) >= fband)
+            {
+                continue;
+            }
+
+            float push = self->strength[i] * fgain;
+
+            data[p * 2 + 0] += (dx / dist) * push;
+            data[p * 2 + 1] += (dy / dist) * push;
+        }
+    }
+
+    return (PyObject *)positions;
+}
+
+/* --------------------------------------------------------- */
+
 static void
 RingField_dealloc(
     RingFieldObject *self
@@ -387,6 +470,12 @@ static PyMethodDef RingField_methods[] =
         (PyCFunction)RingField_shells,
         METH_VARARGS | METH_KEYWORDS,
         "Rotating polygon outlines that lose sides with age."
+    },
+    {
+        "kick",
+        (PyCFunction)RingField_kick,
+        METH_VARARGS | METH_KEYWORDS,
+        "Push positions outward where an alive ring's radius passes through them."
     },
     { NULL, NULL, 0, NULL }
 };

@@ -132,6 +132,8 @@ if NATIVE_AVAILABLE:
             spin_range=(0.0, 0.0),
             lifetime_base: float = 0.5,
             lifetime_coefficient: float = 0.03,
+            randomize_rotation: bool = True,
+            start_rotation: float = 0.0,
         ):
 
             self._native.spawn(
@@ -143,6 +145,8 @@ if NATIVE_AVAILABLE:
                 spin_max=float(spin_range[1]),
                 lifetime_base=float(lifetime_base),
                 lifetime_coefficient=float(lifetime_coefficient),
+                randomize_rotation=bool(randomize_rotation),
+                start_rotation=float(start_rotation),
             )
 
         def update(self, dt: float):
@@ -166,6 +170,14 @@ if NATIVE_AVAILABLE:
             cx, cy = center
 
             return self._native.shells(cx=float(cx), cy=float(cy), sides=int(sides))
+
+        def kick(self, positions, center, gain: float = 1.0, band: float = 16.0):
+
+            cx, cy = center
+
+            return self._native.kick(
+                positions, cx=float(cx), cy=float(cy), gain=float(gain), band=float(band)
+            )
 
     class ChaosField:
 
@@ -371,6 +383,8 @@ else:
             spin_range=(0.0, 0.0),
             lifetime_base: float = 0.5,
             lifetime_coefficient: float = 0.03,
+            randomize_rotation: bool = True,
+            start_rotation: float = 0.0,
         ):
 
             i = self._cursor
@@ -381,7 +395,13 @@ else:
             self.speed[i] = speed
             self.strength[i] = strength
             self.wobble[i] = wobble
-            self.rotation[i] = self.random.uniform(0.0, 2.0 * math.pi)
+
+            self.rotation[i] = (
+                self.random.uniform(0.0, 2.0 * math.pi)
+                if randomize_rotation
+                else start_rotation
+            )
+
             self.spin[i] = self.random.uniform(*spin_range)
             self.age[i] = 0.0
             self.lifetime[i] = lifetime_base + strength * lifetime_coefficient
@@ -445,6 +465,36 @@ else:
                 out.append((np.column_stack([x, y]).astype(np.float32), float(life)))
 
             return out
+
+        def kick(self, positions, center, gain: float = 1.0, band: float = 16.0):
+
+            positions = np.array(positions, dtype=np.float32, copy=True)
+
+            if positions.shape[0] == 0:
+
+                return positions
+
+            cx, cy = center
+
+            dx = positions[:, 0] - cx
+            dy = positions[:, 1] - cy
+
+            dist = np.hypot(dx, dy) + 1e-6
+
+            for i in np.nonzero(self.alive)[0]:
+
+                hit = np.abs(dist - self.radius[i]) < band
+
+                if not np.any(hit):
+                    continue
+
+                push = self.strength[i] * gain
+
+                positions[hit, 0] += (dx[hit] / dist[hit]) * push
+                positions[hit, 1] += (dy[hit] / dist[hit]) * push
+
+            return positions
+
 
     class ChaosField:
 

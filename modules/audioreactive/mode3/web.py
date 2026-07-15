@@ -1,9 +1,10 @@
-
 from __future__ import annotations
 
 import math
 
 import numpy as np
+
+from modules.audioreactive.native import radial_ring
 
 
 def _spoke_lengths(spectrum, spoke_count):
@@ -31,8 +32,6 @@ def web_rings(
     rotation: float,
 ):
 
-    cx, cy = center
-
     lengths = _spoke_lengths(spectrum, spoke_count)
 
     for r in range(ring_count):
@@ -44,27 +43,17 @@ def web_rings(
             + (math.pi / spoke_count) * r
         )
 
-        angles = ring_rotation + np.linspace(
-            0.0,
-            2.0 * math.pi,
-            spoke_count,
-            endpoint=False,
-        )
-
         radius = (
             base_radius
             + radius_step * r
             + lengths * amplitude * (1.0 - r * 0.12)
         )
 
-        x = cx + radius * np.cos(angles)
-        y = cy + radius * np.sin(angles)
-
-        points = np.column_stack([x, y]).astype(np.float32)
-
-        points = np.vstack([points, points[0]])
-
-        yield points
+        yield radial_ring(
+            radius,
+            base_angle=ring_rotation,
+            center=center,
+        )
 
 
 def web_spokes(
