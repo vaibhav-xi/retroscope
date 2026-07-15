@@ -150,48 +150,57 @@ class GrowthTree:
 
     def segments(self):
 
-        for branch in self.branches:
+        n = len(self.branches)
+
+        if n == 0:
+
+            return np.zeros((0, 2, 2), dtype=np.float32)
+
+        points = np.empty((n, 2, 2), dtype=np.float32)
+
+        for i, branch in enumerate(self.branches):
 
             ox, oy = branch["origin"]
-
             tx, ty = self._tip(branch)
 
-            points = np.array(
-                [[ox, oy], [tx, ty]],
-                dtype=np.float32,
-            )
+            points[i, 0, 0] = ox
+            points[i, 0, 1] = oy
+            points[i, 1, 0] = tx
+            points[i, 1, 1] = ty
 
-            yield points, branch["depth"]
+        return points
 
     # ---------------------------------------------------------
 
     def blossoms(self):
 
-        for branch in self.branches:
+        bloomed = [b for b in self.branches if b["bloomed"]]
 
-            if not branch["bloomed"]:
-                continue
+        n = len(bloomed)
+
+        if n == 0:
+
+            return np.zeros((0, 13, 2), dtype=np.float32)
+
+        points = np.empty((n, 13, 2), dtype=np.float32)
+
+        for i, branch in enumerate(bloomed):
 
             tx, ty = self._tip(branch)
 
             size = 5.0 * (0.8 ** branch["depth"])
 
-            points = [(tx, ty)]
+            points[i, 0, 0] = tx
+            points[i, 0, 1] = ty
 
-            for i in range(6):
+            for k in range(6):
 
-                angle = branch["angle"] + (i / 6.0) * math.tau
+                angle = branch["angle"] + (k / 6.0) * math.tau
 
-                points.append(
-                    (
-                        tx + math.cos(angle) * size,
-                        ty + math.sin(angle) * size,
-                    )
-                )
+                points[i, 1 + k * 2, 0] = tx + math.cos(angle) * size
+                points[i, 1 + k * 2, 1] = ty + math.sin(angle) * size
 
-                points.append((tx, ty))
+                points[i, 2 + k * 2, 0] = tx
+                points[i, 2 + k * 2, 1] = ty
 
-            yield (
-                np.array(points, dtype=np.float32),
-                branch["depth"],
-            )
+        return points

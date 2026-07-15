@@ -52,15 +52,17 @@ def _core_rays(center, count, length, rotation):
         0.0, 2.0 * math.pi, count, endpoint=False
     )
 
-    for angle in angles:
+    x = cx + np.cos(angles) * length
+    y = cy + np.sin(angles) * length
 
-        x = cx + math.cos(angle) * length
-        y = cy + math.sin(angle) * length
+    points = np.empty((count, 2, 2), dtype=np.float32)
 
-        yield np.array(
-            [[cx, cy], [x, y]],
-            dtype=np.float32,
-        )
+    points[:, 0, 0] = cx
+    points[:, 0, 1] = cy
+    points[:, 1, 0] = x
+    points[:, 1, 1] = y
+
+    return points
 
 
 def _pulse_ring(center, radius, segments=48):
@@ -343,14 +345,16 @@ class AudioReactiveMode4(Module):
             26.0 + self.bass_smooth * 46.0 + self.beat_pulse * 30.0
         )
 
-        for points in _core_rays(
-            center=(cx, cy),
-            count=_CORE_RAY_COUNT,
-            length=ray_length,
-            rotation=self.rotation,
-        ):
-
-            self.core_renderable.add(Polyline(points=points))
+        self.core_renderable.add(
+            PolylineBatch(
+                points=_core_rays(
+                    center=(cx, cy),
+                    count=_CORE_RAY_COUNT,
+                    length=ray_length,
+                    rotation=self.rotation,
+                )
+            )
+        )
 
         self.core_renderable.add(
             Polyline(
@@ -372,14 +376,14 @@ class AudioReactiveMode4(Module):
 
         self.growth_renderable.clear()
 
-        for points, depth in self.growth.segments():
+        segments = self.growth.segments()
 
-            points = points.copy()
+        if segments.shape[0] > 0:
 
-            points[:, 0] += cx
-            points[:, 1] += cy
+            segments[:, :, 0] += cx
+            segments[:, :, 1] += cy
 
-            self.growth_renderable.add(Polyline(points=points))
+            self.growth_renderable.add(PolylineBatch(points=segments))
 
         self.blossom_renderable.material = Material(
             color=hsv((hue + 0.15) % 1.0, 0.85, 1.0),
@@ -388,14 +392,14 @@ class AudioReactiveMode4(Module):
 
         self.blossom_renderable.clear()
 
-        for points, depth in self.growth.blossoms():
+        blossoms = self.growth.blossoms()
 
-            points = points.copy()
+        if blossoms.shape[0] > 0:
 
-            points[:, 0] += cx
-            points[:, 1] += cy
+            blossoms[:, :, 0] += cx
+            blossoms[:, :, 1] += cy
 
-            self.blossom_renderable.add(Polyline(points=points))
+            self.blossom_renderable.add(PolylineBatch(points=blossoms))
 
         #
         # Boid swarm + its constellation links.
@@ -408,9 +412,11 @@ class AudioReactiveMode4(Module):
 
         self.boid_renderable.clear()
 
-        for points in self.boids.render_points(center=(cx, cy)):
-
-            self.boid_renderable.add(Polyline(points=points))
+        self.boid_renderable.add(
+            PolylineBatch(
+                points=self.boids.render_points(center=(cx, cy))
+            )
+        )
 
         self.link_renderable.material = Material(
             color=hsv((hue + 0.33) % 1.0, 0.35, 0.5),
@@ -419,9 +425,11 @@ class AudioReactiveMode4(Module):
 
         self.link_renderable.clear()
 
-        for points in self.boids.neighbor_links(max_links=_MAX_BOID_LINKS, center=(cx, cy)):
+        links = self.boids.neighbor_links(max_links=_MAX_BOID_LINKS, center=(cx, cy))
 
-            self.link_renderable.add(Polyline(points=points))
+        if links.shape[0] > 0:
+
+            self.link_renderable.add(PolylineBatch(points=links))
 
         #
         # Comet trail + sparks.

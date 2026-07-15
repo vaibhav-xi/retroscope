@@ -331,7 +331,8 @@ BoidSwarm_neighbor_links(
 
     if (max_pairs <= 0)
     {
-        return PyList_New(0);
+        npy_intp empty_dims[3] = { 0, 2, 2 };
+        return PyArray_SimpleNew(3, empty_dims, NPY_FLOAT32);
     }
 
     BoidLinkCandidate *candidates = (BoidLinkCandidate *)PyMem_Malloc(
@@ -374,13 +375,23 @@ BoidSwarm_neighbor_links(
         count = max_links;
     }
 
-    PyObject *result = PyList_New(count);
+    /*
+     * Single (count, 2, 2) array instead of a Python list of
+     * `count` separate (2, 2) arrays.
+     */
+
+    npy_intp dims[3] = { count, 2, 2 };
+
+    PyArrayObject *result =
+        (PyArrayObject *)PyArray_SimpleNew(3, dims, NPY_FLOAT32);
 
     if (result == NULL)
     {
         PyMem_Free(candidates);
         return NULL;
     }
+
+    float *dst = (float *)PyArray_DATA(result);
 
     float fcx = (float)center_x;
     float fcy = (float)center_y;
@@ -390,31 +401,17 @@ BoidSwarm_neighbor_links(
         int i = candidates[k].i;
         int j = candidates[k].j;
 
-        npy_intp dims[2] = { 2, 2 };
+        float *out = dst + k * 4;
 
-        PyArrayObject *points =
-            (PyArrayObject *)PyArray_SimpleNew(2, dims, NPY_FLOAT32);
-
-        if (points == NULL)
-        {
-            PyMem_Free(candidates);
-            Py_DECREF(result);
-            return NULL;
-        }
-
-        float *data = (float *)PyArray_DATA(points);
-
-        data[0] = self->pos_x[i] + fcx;
-        data[1] = self->pos_y[i] + fcy;
-        data[2] = self->pos_x[j] + fcx;
-        data[3] = self->pos_y[j] + fcy;
-
-        PyList_SET_ITEM(result, k, (PyObject *)points);
+        out[0] = self->pos_x[i] + fcx;
+        out[1] = self->pos_y[i] + fcy;
+        out[2] = self->pos_x[j] + fcx;
+        out[3] = self->pos_y[j] + fcy;
     }
 
     PyMem_Free(candidates);
 
-    return result;
+    return (PyObject *)result;
 }
 
 static PyObject *
@@ -440,12 +437,22 @@ BoidSwarm_render_points(
 
     int n = self->capacity;
 
-    PyObject *result = PyList_New(n);
+    /*
+     * Single (n, 4, 2) array instead of a Python list of n
+     * separate (4, 2) arrays.
+     */
+
+    npy_intp dims[3] = { n, 4, 2 };
+
+    PyArrayObject *result =
+        (PyArrayObject *)PyArray_SimpleNew(3, dims, NPY_FLOAT32);
 
     if (result == NULL)
     {
         return NULL;
     }
+
+    float *dst = (float *)PyArray_DATA(result);
 
     float size = 6.0f;
 
@@ -474,28 +481,15 @@ BoidSwarm_render_points(
         float right_x = px - dir_x * size * 0.6f - perp_x * size * 0.5f;
         float right_y = py - dir_y * size * 0.6f - perp_y * size * 0.5f;
 
-        npy_intp dims[2] = { 4, 2 };
+        float *out = dst + i * 8;
 
-        PyArrayObject *points =
-            (PyArrayObject *)PyArray_SimpleNew(2, dims, NPY_FLOAT32);
-
-        if (points == NULL)
-        {
-            Py_DECREF(result);
-            return NULL;
-        }
-
-        float *data = (float *)PyArray_DATA(points);
-
-        data[0] = nose_x;  data[1] = nose_y;
-        data[2] = left_x;  data[3] = left_y;
-        data[4] = right_x; data[5] = right_y;
-        data[6] = nose_x;  data[7] = nose_y;
-
-        PyList_SET_ITEM(result, i, (PyObject *)points);
+        out[0] = nose_x;  out[1] = nose_y;
+        out[2] = left_x;  out[3] = left_y;
+        out[4] = right_x; out[5] = right_y;
+        out[6] = nose_x;  out[7] = nose_y;
     }
 
-    return result;
+    return (PyObject *)result;
 }
 
 /* --------------------------------------------------------- */
