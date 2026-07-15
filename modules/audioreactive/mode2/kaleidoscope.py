@@ -1,25 +1,9 @@
-"""
-RetroScope
-
-Audio Reactive Mode 2 - Kaleidoscope
-
-Nested, counter-rotating polygon/petal rings.
-
-Each ring is a single closed polyline sampled from a
-star/flower function, so vertex count per ring stays constant
-while the music only changes shape and radius - point count,
-and therefore draw cost, never scales with the music.
-
-Pure geometry.
-No renderer.
-No OpenGL.
-"""
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
+
+from modules.audioreactive.native import radial_ring
 
 
 def petal_ring(
@@ -31,11 +15,15 @@ def petal_ring(
     segments: int,
 ) -> np.ndarray:
 
-    cx, cy = center
+    #
+    # Computed with the rotation already baked in, matching the
+    # original exactly - the petal pattern's phase and its on-screen
+    # position rotate together, not independently.
+    #
 
     angles = rotation + np.linspace(
         0.0,
-        2.0 * math.pi,
+        2.0 * np.pi,
         segments,
         endpoint=False,
     )
@@ -44,14 +32,11 @@ def petal_ring(
         angles * petal_count
     )
 
-    x = cx + radius * np.cos(angles)
-    y = cy + radius * np.sin(angles)
-
-    points = np.column_stack([x, y]).astype(np.float32)
-
-    points = np.vstack([points, points[0]])
-
-    return points
+    return radial_ring(
+        radius,
+        base_angle=rotation,
+        center=center,
+    )
 
 
 def kaleidoscope_layers(

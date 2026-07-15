@@ -1,0 +1,2 @@
+from modules.audioreactive.native import NATIVE_AVAILABLE
+print(NATIVE_AVAILABLE)

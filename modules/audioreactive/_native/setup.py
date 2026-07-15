@@ -7,6 +7,11 @@ module = Extension(
     sources=[
         "ember_field.c",
         "spectrum_ring.c",
+        "burst_field.c",
+        "ring_field.c",
+        "chaos_field.c",
+        "fractal.c",
+        "radial_ring.c",
         "wrapper.c",
     ],
     include_dirs=[
