@@ -210,3 +210,8 @@ class GrowthTree:
 
         points[:, 1::2, 0] = spoke_x
         points[:, 1::2, 1] = spoke_y
+
+        points[:, 2::2, 0] = tx[:, None]
+        points[:, 2::2, 1] = ty[:, None]
+
+        return points
