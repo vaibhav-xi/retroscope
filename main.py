@@ -11,6 +11,8 @@ import gc
 
 from core.app import App
 
+import sys
+
 
 def main() -> None:
     """
@@ -18,6 +20,8 @@ def main() -> None:
     """
 
     gc.disable()
+    
+    sys.setswitchinterval(0.001)
 
     app = App()
 

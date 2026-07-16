@@ -130,7 +130,7 @@ class MusicAnalyzer(AudioInput):
         input_gain: float = 1.0,
         channel: int = 0,
         channels: int = 1,
-        latency="high",
+        latency=None,
         muted: bool = False,
         stereo: bool = False,
         enable_band_waveforms: bool = True,
