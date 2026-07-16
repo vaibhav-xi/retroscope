@@ -174,6 +174,39 @@ class AudioInput:
     # ---------------------------------------------------------
 
     @staticmethod
+    def debug_devices():
+        """
+        Print every hostapi and device sounddevice can see, with
+        indices. Run this if loopback still picks the wrong target
+        (or falls back to the mic) so we can see what's available.
+        """
+
+        if sd is None:
+
+            print("[AudioInput] sounddevice is not installed.")
+            return
+
+        for i, api in enumerate(sd.query_hostapis()):
+
+            print(
+                f"hostapi[{i}] {api['name']}  "
+                f"default_output={api['default_output_device']}  "
+                f"default_input={api['default_input_device']}"
+            )
+
+        print(f"sd.default.device (input, output) = {sd.default.device}")
+
+        for i, info in enumerate(sd.query_devices()):
+
+            print(
+                f"[{i}] hostapi={info['hostapi']} "
+                f"in={info['max_input_channels']} out={info['max_output_channels']} "
+                f"rate={info['default_samplerate']}  {info['name']}"
+            )
+
+    # ---------------------------------------------------------
+
+    @staticmethod
     def _find_wasapi_loopback_target(device):
 
         if sd is None:
@@ -191,42 +224,73 @@ class AudioInput:
 
             raise RuntimeError("WASAPI host API not available on this system")
 
-        if device is None:
-
-            output_index = hostapis[wasapi_index]["default_output_device"]
-
-            if output_index < 0:
-
-                raise RuntimeError("no default WASAPI output device")
-
-            return output_index
-
         devices = sd.query_devices()
 
-        if isinstance(device, int):
+        if device is not None:
 
-            info = devices[device]
+            if isinstance(device, int):
 
-            if info["hostapi"] != wasapi_index or info["max_output_channels"] < 1:
+                info = devices[device]
 
-                raise RuntimeError(f"device {device} is not a WASAPI output device")
+                if info["hostapi"] != wasapi_index or info["max_output_channels"] < 1:
 
-            return device
+                    raise RuntimeError(f"device {device} is not a WASAPI output device")
 
-        # Treat `device` as a name substring, e.g. "Speakers", "Realtek".
-        name = str(device).lower()
+                return device
 
+            name = str(device).lower()
+
+            for i, info in enumerate(devices):
+
+                if (
+                    info["hostapi"] == wasapi_index
+                    and info["max_output_channels"] >= 1
+                    and name in info["name"].lower()
+                ):
+
+                    return i
+
+            raise RuntimeError(f"no WASAPI output device matching '{device}'")
+
+        # 1. Prefer the WASAPI hostapi's own default output, if set.
+        candidate = hostapis[wasapi_index]["default_output_device"]
+
+        if candidate is not None and candidate >= 0:
+
+            return candidate
+
+        #
+        # 2. Windows frequently reports -1 for the *WASAPI-specific*
+        # default output even though WASAPI is available. Match the
+        # *system* default output device (sd.default.device) by name
+        # against the WASAPI device list instead - this is what
+        # actually reflects "whatever is selected in Sound Settings".
+        #
+        system_default = sd.default.device[1]
+
+        if system_default is not None and system_default >= 0:
+
+            target_name = devices[system_default]["name"].lower()
+
+            for i, info in enumerate(devices):
+
+                if (
+                    info["hostapi"] == wasapi_index
+                    and info["max_output_channels"] >= 1
+                    and info["name"].lower() == target_name
+                ):
+
+                    return i
+
+        # 3. Last resort - any WASAPI output device is better than
+        # silently capturing the microphone.
         for i, info in enumerate(devices):
 
-            if (
-                info["hostapi"] == wasapi_index
-                and info["max_output_channels"] >= 1
-                and name in info["name"].lower()
-            ):
+            if info["hostapi"] == wasapi_index and info["max_output_channels"] >= 1:
 
                 return i
 
-        raise RuntimeError(f"no WASAPI output device matching '{device}'")
+        raise RuntimeError("no usable WASAPI output device found")
 
     # ---------------------------------------------------------
 
@@ -325,8 +389,9 @@ class AudioInput:
             except Exception as exc:
 
                 print(
-                    f"[AudioInput] WASAPI loopback unavailable ({exc}) "
-                    f"- falling back to a regular input device."
+                    f"[AudioInput] WASAPI loopback unavailable "
+                    f"({type(exc).__name__}: {exc}) - falling back "
+                    f"to a regular input device."
                 )
 
                 self.loopback = False
