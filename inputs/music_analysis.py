@@ -920,6 +920,8 @@ class MusicAnalyzer(AudioInput):
 
         self.drop = was_low and self.energy_trend > 0.6
         
+        self._debug_counter = getattr(self, "_debug_counter", 0) + 1
+        
         if self._debug_counter % 40 == 0:
 
             print(
