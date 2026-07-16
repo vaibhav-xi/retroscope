@@ -80,7 +80,7 @@ class AudioReactiveMode13(Module):
 
             self.brightness_layers.append(
                 Renderable(
-                    material=Material(color=color, line_width=1.5),
+                    material=Material(color=color, line_width=0.8),
                     is_dynamic=True,
                 )
             )

@@ -13,6 +13,10 @@ int stroke_build(
 
     float half_width,
 
+    float screen_width,
+
+    float screen_height,
+
     float *vertices
 
 );

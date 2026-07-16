@@ -92,6 +92,7 @@ class GeometryBuilder:
                             builder.build_many(
                                 items,
                                 geometry.vertex_buffer,
+                                width=renderable.material.line_width,
                             )
 
                         else:

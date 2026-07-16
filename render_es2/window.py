@@ -19,7 +19,7 @@ import glfw
 from OpenGL import GL
 
 from render_es2.platform_gl import IS_DESKTOP_GL
-
+from render_es2.stroke_builder import StrokeBuilder
 
 class Window:
 
@@ -96,6 +96,11 @@ class Window:
             )
 
         glfw.make_context_current(self.handle)
+        
+        fb_width, fb_height = glfw.get_framebuffer_size(self.handle)
+
+        StrokeBuilder.screen_width = float(fb_width)
+        StrokeBuilder.screen_height = float(fb_height)
 
         #
         # Windows only: opengl32.dll statically exports OpenGL 1.1.

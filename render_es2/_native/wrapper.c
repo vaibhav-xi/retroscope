@@ -44,6 +44,8 @@ build(
 {
     PyArrayObject *points_array;
     double width;
+    double screen_width;
+    double screen_height;
 
     PyObject *vertex_buffer_obj;
     VertexBufferObject *vertex_buffer;
@@ -52,10 +54,12 @@ build(
 
     if (!PyArg_ParseTuple(
         args,
-        "OdO",
+        "OdOdd",
         &points,
         &width,
-        &vertex_buffer_obj))
+        &vertex_buffer_obj,
+        &screen_width,
+        &screen_height))
     {
         return NULL;
     }
@@ -137,6 +141,8 @@ build(
             packed_points,
             point_count,
             (float)(width * 0.5f),
+            (float)screen_width,
+            (float)screen_height,
             vertices
         );
 
@@ -169,16 +175,20 @@ build_many(
 {
     PyObject *polylines;
     double width;
+    double screen_width;
+    double screen_height;
 
     PyObject *vertex_buffer_obj;
     VertexBufferObject *vertex_buffer;
 
     if (!PyArg_ParseTuple(
         args,
-        "OdO",
+        "OdOdd",
         &polylines,
         &width,
-        &vertex_buffer_obj))
+        &vertex_buffer_obj,
+        &screen_width,
+        &screen_height))
     {
         return NULL;
     }
@@ -320,6 +330,8 @@ build_many(
                     packed_points,
                     point_count,
                     (float)(width * 0.5f),
+                    (float)screen_width,
+                    (float)screen_height,
                     cursor
                 );
 

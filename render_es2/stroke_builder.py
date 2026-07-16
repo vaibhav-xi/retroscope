@@ -13,28 +13,37 @@ try:
 
     class StrokeBuilder:
 
+        # Set once by Window at startup from the real window size
+        # (see render_es2/window.py). Defaults match the old
+        # hardcoded values so nothing breaks if it's never set.
+        screen_width = 800.0
+        screen_height = 480.0
+
         @staticmethod
         def build(
             primitive,
             vertex_buffer,
+            width=2.0,
         ):
 
             if primitive.points.ndim == 3:
 
-                # PolylineBatch: many (P, 2) polylines at once.
-
                 NativeBuildMany(
                     primitive.points,
-                    2.0,
+                    float(width),
                     vertex_buffer,
+                    StrokeBuilder.screen_width,
+                    StrokeBuilder.screen_height,
                 )
 
             else:
 
                 NativeBuild(
                     primitive.points,
-                    2.0,
+                    float(width),
                     vertex_buffer,
+                    StrokeBuilder.screen_width,
+                    StrokeBuilder.screen_height,
                 )
 
         @staticmethod
@@ -43,13 +52,6 @@ try:
             vertex_buffer,
             width=2.0,
         ):
-            """
-            Build every Polyline/PolylineBatch in `primitives` into
-            `vertex_buffer` in a single native call. PolylineBatch
-            entries are expanded into their individual segments so a
-            renderable mixing single polylines and dash batches
-            still ends up as one native call.
-            """
 
             if (
                 len(primitives) == 1
@@ -60,6 +62,8 @@ try:
                     primitives[0].points,
                     float(width),
                     vertex_buffer,
+                    StrokeBuilder.screen_width,
+                    StrokeBuilder.screen_height,
                 )
 
                 return
@@ -80,6 +84,8 @@ try:
                 parts,
                 float(width),
                 vertex_buffer,
+                StrokeBuilder.screen_width,
+                StrokeBuilder.screen_height,
             )
 
 except ImportError:
