@@ -18,7 +18,8 @@ from inputs.music_analysis import MusicAnalyzer
 
 from . import scope
 
-_IS_DESKTOP = platform.system() == "Darwin"
+# _IS_DESKTOP = platform.system() == "Darwin"
+_IS_DESKTOP = True
 
 _SPECTRUM_RESOLUTION = 64 if _IS_DESKTOP else 32
 
@@ -53,6 +54,10 @@ class AudioReactiveMode8(Module):
             samplerate=config.AUDIO_SAMPLE_RATE,
             block_size=config.AUDIO_BLOCK_SIZE,
             spectrum_resolution=_SPECTRUM_RESOLUTION,
+            enable_band_waveforms=False,
+            enable_vocal_analysis=True,
+            enable_pitch_tracking=False,
+            enable_harmony=True,
         )
 
         self.kick_flash = 0.0
@@ -106,7 +111,7 @@ class AudioReactiveMode8(Module):
 
         self.grid_center_renderable = Renderable(
             material=Material(color=self._grid_center, line_width=1.3),
-            is_dynamic=True,
+            is_dynamic=False,
         )
 
         self.grid_minor_renderable = Renderable(
