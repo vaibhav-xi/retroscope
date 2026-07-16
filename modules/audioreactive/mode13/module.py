@@ -7,7 +7,7 @@ import config
 from core.module import Module
 from core.frame import Layer
 
-from render.primitives import PolylineBatch
+from render.primitives import Polyline
 from render.renderable import Renderable
 from render_es2.material import Material
 
@@ -17,26 +17,21 @@ import platform
 
 _IS_WINDOWS = platform.system() == "Windows"
 
-_PERSISTENCE_SECONDS = 3
-
 _MIN_FRAME_SAMPLES = 64
 _MAX_FRAME_SAMPLES = 4000
 
-_BRIGHTNESS_LEVELS = 6
+_MIN_PERSISTENCE_SECONDS = 1
+_MAX_PERSISTENCE_SECONDS = 50
+_DEFAULT_PERSISTENCE_SECONDS = 8
 
-LINE_WIDTH = 1
+_ANALYSIS_SECONDS = 0.2
+
+_MIN_STROKE_POINTS = 4
 
 
 def _normalize_color(color_255):
 
     return tuple(c / 255.0 for c in color_255)
-
-
-def _lerp_color(a, b, t):
-
-    t = max(0.0, min(1.0, t))
-
-    return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
 
 
 class AudioReactiveMode13(Module):
@@ -55,12 +50,13 @@ class AudioReactiveMode13(Module):
 
         self.rect = (0.0, 0.0, 1.0, 1.0)
 
-        self._dim = (0.0, 0.0, 0.0)
         self._bright = (1.0, 1.0, 1.0)
 
-        self.brightness_layers = []
+        self.trace_renderable = None
 
         self._gain_peak = 1e-4
+
+        self._cycle_seconds = _DEFAULT_PERSISTENCE_SECONDS
 
     # ---------------------------------------------------------
 
@@ -70,24 +66,12 @@ class AudioReactiveMode13(Module):
 
         theme = context.theme
 
-        self._dim = _normalize_color(theme.trace_glow)
         self._bright = _normalize_color(theme.trace_core)
 
-        self.brightness_layers = []
-
-        for level in range(_BRIGHTNESS_LEVELS):
-
-            # level 0 = slowest segments = brightest.
-            t = 1.0 - (level / max(_BRIGHTNESS_LEVELS - 1, 1))
-
-            color = _lerp_color(self._dim, self._bright, t * t)
-
-            self.brightness_layers.append(
-                Renderable(
-                    material=Material(color=color, line_width=LINE_WIDTH),
-                    is_dynamic=True,
-                )
-            )
+        self.trace_renderable = Renderable(
+            material=Material(color=self._bright, line_width=1.0),
+            is_dynamic=True,
+        )
 
         self._compute_layout(context)
 
@@ -134,6 +118,11 @@ class AudioReactiveMode13(Module):
 
     @staticmethod
     def _split_on_jumps(points, max_factor: float = 6.0, min_threshold: float = 4.0):
+        """
+        Beam blanking approximation - any point-to-point jump much
+        larger than the typical spacing is a reposition, not a
+        stroke, so it starts a new disconnected segment.
+        """
 
         if len(points) < 2:
 
@@ -157,47 +146,38 @@ class AudioReactiveMode13(Module):
 
     # ---------------------------------------------------------
 
-    @staticmethod
-    def _bucket_by_speed(points, num_levels: int):
+    def _measure_cycle_seconds(self, audio):
+        analysis_samples = int(_ANALYSIS_SECONDS * audio.samplerate)
 
-        if len(points) < 2:
+        left, right = audio.recent_stereo(analysis_samples)
 
-            return []
+        if len(left) < _MIN_STROKE_POINTS * 2:
 
-        starts = points[:-1]
-        ends = points[1:]
+            return None
 
-        seg_len = np.sqrt(np.sum((ends - starts) ** 2, axis=1))
-
-        order = np.argsort(seg_len)
-
-        ranks = np.empty_like(order)
-        ranks[order] = np.arange(len(seg_len))
-
-        bucket_idx = np.clip(
-            (ranks * num_levels) // max(len(seg_len), 1),
-            0,
-            num_levels - 1,
+        peak = max(
+            float(np.max(np.abs(left))),
+            float(np.max(np.abs(right))),
+            1e-4,
         )
 
-        buckets = []
+        if peak < 0.02:
 
-        for level in range(num_levels):
+            return None
 
-            mask = bucket_idx == level
+        gain = 0.9 / max(peak, 0.05)
 
-            if not np.any(mask):
+        points = self._xy_trace(left, right, self.rect, gain)
 
-                continue
+        strokes = self._split_on_jumps(points)
 
-            segments = np.stack(
-                [starts[mask], ends[mask]],
-                axis=1,
-            ).astype(np.float32)
+        lengths = [len(s) for s in strokes if len(s) >= _MIN_STROKE_POINTS]
 
-            buckets.append((segments, level))
+        if not lengths:
 
-        return buckets
+            return None
+
+        return float(np.median(lengths)) / audio.samplerate
 
     # ---------------------------------------------------------
 
@@ -211,15 +191,24 @@ class AudioReactiveMode13(Module):
 
         audio = self.audio
 
-        needed = int(round(_PERSISTENCE_SECONDS * audio.samplerate))
+        measured = self._measure_cycle_seconds(audio)
+
+        if measured is not None:
+
+            target = min(
+                _MAX_PERSISTENCE_SECONDS,
+                max(_MIN_PERSISTENCE_SECONDS, measured * 1.15),
+            )
+
+            self._cycle_seconds += (target - self._cycle_seconds) * 0.08
+
+        needed = int(round(self._cycle_seconds * audio.samplerate))
 
         needed = max(_MIN_FRAME_SAMPLES, min(_MAX_FRAME_SAMPLES, needed))
 
         left, right = audio.recent_stereo(needed)
 
-        for renderable in self.brightness_layers:
-
-            renderable.clear()
+        self.trace_renderable.clear()
 
         if len(left) >= 2:
 
@@ -237,15 +226,11 @@ class AudioReactiveMode13(Module):
 
             for stroke in self._split_on_jumps(points):
 
-                for segments, level in self._bucket_by_speed(stroke, _BRIGHTNESS_LEVELS):
+                if len(stroke) >= 2:
 
-                    self.brightness_layers[level].add(
-                        PolylineBatch(points=segments)
-                    )
+                    self.trace_renderable.add(Polyline(points=stroke))
 
-        for renderable in reversed(self.brightness_layers):
-
-            frame.add_renderable(renderable, Layer.MAIN)
+        frame.add_renderable(self.trace_renderable, Layer.MAIN)
 
     # ---------------------------------------------------------
 
