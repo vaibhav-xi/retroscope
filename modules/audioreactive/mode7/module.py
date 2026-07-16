@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import math
-import platform
 
 import numpy as np
 
@@ -19,7 +18,8 @@ from inputs.music_analysis import MusicAnalyzer
 
 from . import scope
 
-_IS_DESKTOP = platform.system() == "Darwin"
+# _IS_DESKTOP = platform.system() == "Darwin"
+_IS_DESKTOP = True
 
 _SPECTRUM_RESOLUTION = 64 if _IS_DESKTOP else 32
 
@@ -55,6 +55,10 @@ class AudioReactiveMode7(Module):
             samplerate=config.AUDIO_SAMPLE_RATE,
             block_size=config.AUDIO_BLOCK_SIZE,
             spectrum_resolution=_SPECTRUM_RESOLUTION,
+            enable_band_waveforms=True,
+            enable_vocal_analysis=False,
+            enable_pitch_tracking=True,
+            enable_harmony=True,
         )
 
         self.kick_flash = 0.0
@@ -368,7 +372,7 @@ class AudioReactiveMode7(Module):
             color=_lerp_color(self._accent, self._bright, self.trigger_flash),
             line_width=1.2 + self.trigger_flash * 1.5,
         )
-        
+
         liss_window_samples = max(64, int(samplerate * _LISSAJOUS_WINDOW_SECONDS))
 
         if audio.melody_note_confidence >= audio.bass_note_confidence and audio.melody_note_confidence > 0.1:
