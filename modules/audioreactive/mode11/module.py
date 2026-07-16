@@ -15,6 +15,8 @@ from inputs.audio import AudioInput
 
 import platform
 
+import sounddevice as sd
+
 _IS_WINDOWS = platform.system() == "Windows"
 
 _IS_DESKTOP = True
@@ -56,6 +58,9 @@ class AudioReactiveMode11(Module):
     # ---------------------------------------------------------
 
     def initialize(self, context):
+
+        print(sd.get_portaudio_version())
+        print(sd.query_hostapis())
 
         self.audio.start()
 
