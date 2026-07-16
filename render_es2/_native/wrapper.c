@@ -11,6 +11,31 @@
 
 #include "shader_object.h"
 
+#include "gl_platform.h"
+
+/*
+ * init_gl()
+ *
+ * Loads OpenGL >1.1 entry points via wglGetProcAddress() on
+ * Windows. No-op on macOS/Linux/Pi, where these are already
+ * statically linked. Must be called once, right after the GL
+ * context is created and made current (Window.__init__ does
+ * this), before any Mesh/Shader object is used.
+ */
+
+static PyObject *
+native_init_gl(
+    PyObject *Py_UNUSED(self),
+    PyObject *Py_UNUSED(args)
+)
+{
+#ifdef _WIN32
+    gl_platform_init();
+#endif
+
+    Py_RETURN_NONE;
+}
+
 static PyObject *
 build(
     PyObject *self,
@@ -329,6 +354,13 @@ static PyMethodDef methods[] = {
         build_many,
         METH_VARARGS,
         ""
+    },
+
+    {
+        "init_gl",
+        native_init_gl,
+        METH_NOARGS,
+        "Load OpenGL entry points on Windows (no-op elsewhere)."
     },
 
     {NULL, NULL, 0, NULL}

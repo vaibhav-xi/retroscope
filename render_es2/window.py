@@ -15,10 +15,10 @@ Knows nothing about rendering.
 
 from __future__ import annotations
 
-import platform
-
 import glfw
 from OpenGL import GL
+
+from render_es2.platform_gl import IS_DESKTOP_GL
 
 
 class Window:
@@ -29,12 +29,12 @@ class Window:
             raise RuntimeError("Failed to initialize GLFW")
 
         #
-        # macOS
+        # macOS / Windows
         #
-        # Desktop OpenGL 4.1
+        # Desktop OpenGL 4.1 Core Profile
         #
 
-        if platform.system() == "Darwin":
+        if IS_DESKTOP_GL:
 
             glfw.window_hint(
                 glfw.CONTEXT_VERSION_MAJOR,
@@ -96,6 +96,17 @@ class Window:
             )
 
         glfw.make_context_current(self.handle)
+
+        #
+        # Windows only: opengl32.dll statically exports OpenGL 1.1.
+        # Everything newer (VBOs, shaders, VAOs) has to be loaded
+        # at runtime via wglGetProcAddress() now that a context
+        # exists. No-op on macOS/Linux.
+        #
+
+        from render_es2._native import init_gl
+
+        init_gl()
 
         glfw.swap_interval(1)
 

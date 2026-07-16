@@ -1,14 +1,14 @@
 from OpenGL.GL import *
-import platform
 
 from render_es2._native import Shader as NativeShader
+from render_es2.platform_gl import IS_DESKTOP_GL
 
 
 class Shader:
 
     def __init__(self, vertex_src, fragment_src):
 
-        if platform.system() == "Darwin":
+        if IS_DESKTOP_GL:
 
             vertex_src = self._desktop_vertex(vertex_src)
             fragment_src = self._desktop_fragment(fragment_src)
