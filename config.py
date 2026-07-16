@@ -9,6 +9,10 @@ Nothing in this file should change while the engine is
 running. Runtime state belongs in Context.
 """
 
+import platform
+
+_IS_LINUX = platform.system() == "Linux"
+
 # ==========================================================
 # Application
 # ==========================================================
@@ -57,7 +61,7 @@ PLUGINS_DIR = "plugins"
 # Audio Input
 # ==========================================================
 
-AUDIO_DEVICE = None  # None = system default input device
+AUDIO_DEVICE = "retroscope_sink.monitor" if _IS_LINUX else None  # None = system default input device
 
 AUDIO_SAMPLE_RATE = 44100
 
