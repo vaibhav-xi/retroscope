@@ -6,7 +6,7 @@ import math
 import numpy as np
 
 from inputs.audio import AudioInput
-
+from time import perf_counter
 
 class MusicAnalyzer(AudioInput):
 
@@ -451,6 +451,8 @@ class MusicAnalyzer(AudioInput):
     # ---------------------------------------------------------
 
     def _callback(self, indata, frames, time_info, status):
+        
+        t0_total = perf_counter()
 
         samples = indata[:, 0].astype(np.float32)
 
@@ -588,6 +590,8 @@ class MusicAnalyzer(AudioInput):
         self._mag_history_filled = min(
             self._mag_history_filled + 1, self._HPSS_TIME_FRAMES
         )
+        
+        t_hpss0 = perf_counter()
 
         if self._mag_history_filled >= 3:
 
@@ -602,6 +606,8 @@ class MusicAnalyzer(AudioInput):
         percussive_spectrum = self._frequency_median(
             magnitude, self._HPSS_FREQ_WINDOW
         )
+        
+        t_hpss1 = perf_counter()
 
         h_sq = harmonic_spectrum * harmonic_spectrum
         p_sq = percussive_spectrum * percussive_spectrum
@@ -913,6 +919,13 @@ class MusicAnalyzer(AudioInput):
         self._section_state_low = self.energy_trend < 0.1
 
         self.drop = was_low and self.energy_trend > 0.6
+        
+        if self._debug_counter % 40 == 0:
+
+            print(
+                f"[audio] hpss={(t_hpss1 - t_hpss0) * 1000:.2f} ms   "
+                f"callback_total={(perf_counter() - t0_total) * 1000:.2f} ms"
+            )
 
         if self.enable_harmony and update_features:
 
