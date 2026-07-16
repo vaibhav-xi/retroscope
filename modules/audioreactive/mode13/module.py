@@ -17,10 +17,14 @@ import platform
 
 _IS_WINDOWS = platform.system() == "Windows"
 
+_PERSISTENCE_SECONDS = 3
+
 _MIN_FRAME_SAMPLES = 64
 _MAX_FRAME_SAMPLES = 4000
 
 _BRIGHTNESS_LEVELS = 6
+
+LINE_WIDTH = 1
 
 
 def _normalize_color(color_255):
@@ -80,7 +84,7 @@ class AudioReactiveMode13(Module):
 
             self.brightness_layers.append(
                 Renderable(
-                    material=Material(color=color, line_width=0.8),
+                    material=Material(color=color, line_width=LINE_WIDTH),
                     is_dynamic=True,
                 )
             )
@@ -207,7 +211,7 @@ class AudioReactiveMode13(Module):
 
         audio = self.audio
 
-        needed = int(round(context.delta_time * audio.samplerate))
+        needed = int(round(_PERSISTENCE_SECONDS * audio.samplerate))
 
         needed = max(_MIN_FRAME_SAMPLES, min(_MAX_FRAME_SAMPLES, needed))
 
