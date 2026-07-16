@@ -14,6 +14,7 @@ module = Extension(
         "radial_ring.c",
         "boid_swarm.c",
         "segments.c",
+        "hpss.c",
         "wrapper.c",
     ],
     include_dirs=[

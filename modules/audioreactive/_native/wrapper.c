@@ -13,6 +13,7 @@
 #include "radial_ring.h"
 #include "boid_swarm.h"
 #include "segments.h"
+#include "hpss.h"
 
 static PyMethodDef methods[] =
 {
@@ -51,6 +52,12 @@ static PyMethodDef methods[] =
         (PyCFunction)segments_life_dashes,
         METH_VARARGS | METH_KEYWORDS,
         "Per-point life-scaled horizontal 2-point line segments."
+    },
+    {
+        "hpss_separate",
+        (PyCFunction)hpss_separate,
+        METH_VARARGS | METH_KEYWORDS,
+        "Percussive/harmonic separation via sliding-window medians."
     },
     { NULL, NULL, 0, NULL }
 };

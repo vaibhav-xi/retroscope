@@ -6,7 +6,19 @@ import math
 import numpy as np
 
 from inputs.audio import AudioInput
-from time import perf_counter
+# from time import perf_counter
+
+try:
+
+    from modules.audioreactive._native import _native as _hpss_native
+
+    _HPSS_NATIVE_AVAILABLE = True
+
+except ImportError:
+
+    _hpss_native = None
+
+    _HPSS_NATIVE_AVAILABLE = False
 
 class MusicAnalyzer(AudioInput):
 
@@ -452,7 +464,7 @@ class MusicAnalyzer(AudioInput):
 
     def _callback(self, indata, frames, time_info, status):
         
-        t0_total = perf_counter()
+        # t0_total = perf_counter()
 
         samples = indata[:, 0].astype(np.float32)
 
@@ -591,23 +603,34 @@ class MusicAnalyzer(AudioInput):
             self._mag_history_filled + 1, self._HPSS_TIME_FRAMES
         )
         
-        t_hpss0 = perf_counter()
+        # t_hpss0 = perf_counter()
+        
+        if _HPSS_NATIVE_AVAILABLE:
 
-        if self._mag_history_filled >= 3:
-
-            history = self._mag_history[: self._mag_history_filled]
-
-            harmonic_spectrum = np.median(history, axis=0)
+            harmonic_spectrum, percussive_spectrum = _hpss_native.hpss_separate(
+                magnitude,
+                self._mag_history,
+                self._mag_history_filled,
+                self._HPSS_FREQ_WINDOW,
+            )
 
         else:
 
-            harmonic_spectrum = magnitude
+            if self._mag_history_filled >= 3:
 
-        percussive_spectrum = self._frequency_median(
-            magnitude, self._HPSS_FREQ_WINDOW
-        )
+                history = self._mag_history[: self._mag_history_filled]
+
+                harmonic_spectrum = np.median(history, axis=0)
+
+            else:
+
+                harmonic_spectrum = magnitude
+
+            percussive_spectrum = self._frequency_median(
+                magnitude, self._HPSS_FREQ_WINDOW
+            )
         
-        t_hpss1 = perf_counter()
+        # t_hpss1 = perf_counter()
 
         h_sq = harmonic_spectrum * harmonic_spectrum
         p_sq = percussive_spectrum * percussive_spectrum
@@ -920,14 +943,14 @@ class MusicAnalyzer(AudioInput):
 
         self.drop = was_low and self.energy_trend > 0.6
         
-        self._debug_counter = getattr(self, "_debug_counter", 0) + 1
+        # self._debug_counter = getattr(self, "_debug_counter", 0) + 1
         
-        if self._debug_counter % 40 == 0:
+        # if self._debug_counter % 40 == 0:
 
-            print(
-                f"[audio] hpss={(t_hpss1 - t_hpss0) * 1000:.2f} ms   "
-                f"callback_total={(perf_counter() - t0_total) * 1000:.2f} ms"
-            )
+        #     print(
+        #         f"[audio] hpss={(t_hpss1 - t_hpss0) * 1000:.2f} ms   "
+        #         f"callback_total={(perf_counter() - t0_total) * 1000:.2f} ms"
+        #     )
 
         if self.enable_harmony and update_features:
 
