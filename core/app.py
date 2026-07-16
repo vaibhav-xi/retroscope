@@ -117,13 +117,13 @@ class App:
         #     AudioReactiveMode5()
         # )
 
-        self.manager.register(
-            AudioReactiveMode6()
-        )
-
         # self.manager.register(
-        #     AudioReactiveMode7()
+        #     AudioReactiveMode6()
         # )
+
+        self.manager.register(
+            AudioReactiveMode7()
+        )
 
         # self.manager.register(
         #     AudioReactiveMode8()
