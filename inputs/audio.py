@@ -455,6 +455,11 @@ class AudioInput:
     def _open_stream(self, channels: int):
 
         self.channels = max(channels, self.channel + 1)
+        
+        print(f"[AudioInput] Opening device: {self.device}")
+
+        if self.device is not None:
+            print(sd.query_devices(self.device))
 
         self._stream = sd.InputStream(
             device=self.device,
