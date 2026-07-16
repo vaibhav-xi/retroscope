@@ -6,3 +6,4 @@ pygame>=2.6,<3
 PyOpenGL>=3.1,<4
 PyOpenGL-accelerate>=3.1,<4
 sounddevice>=0.5,<1
+PyAudioWPatch>=0.2.12,<1; sys_platform == "win32"

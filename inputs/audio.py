@@ -12,8 +12,18 @@ except ImportError:
 
     sd = None
 
+try:
+
+    import pyaudiowpatch as pyaudio # type: ignore
+
+except ImportError:
+
+    pyaudio = None
+
+import inspect
 
 _IS_WINDOWS = platform.system() == "Windows"
+
 
 
 class AudioInput:
@@ -93,6 +103,10 @@ class AudioInput:
         self._left_buffer = np.zeros(self._waveform_capacity, dtype=np.float32)
         self._right_buffer = np.zeros(self._waveform_capacity, dtype=np.float32)
         self._stereo_write = 0
+        
+        self._stream = None
+        self._pa = None
+        self._pa_stream = None
 
     # ---------------------------------------------------------
     # Gain / mute controls
@@ -146,30 +160,7 @@ class AudioInput:
     # WASAPI loopback helpers (Windows only)
     # ---------------------------------------------------------
 
-    @staticmethod
-    def list_wasapi_output_devices():
-        if sd is None:
-
-            print("[AudioInput] sounddevice is not installed.")
-            return
-
-        hostapis = sd.query_hostapis()
-
-        wasapi_index = next(
-            (i for i, api in enumerate(hostapis) if "WASAPI" in api["name"]),
-            None,
-        )
-
-        if wasapi_index is None:
-
-            print("[AudioInput] WASAPI is not available on this system.")
-            return
-
-        for i, info in enumerate(sd.query_devices()):
-
-            if info["hostapi"] == wasapi_index and info["max_output_channels"] >= 1:
-
-                print(f"[{i}] {info['name']}  ({info['max_output_channels']} ch)")
+    
 
     # ---------------------------------------------------------
 
@@ -206,94 +197,6 @@ class AudioInput:
 
     # ---------------------------------------------------------
 
-    @staticmethod
-    def _find_wasapi_loopback_target(device):
-
-        if sd is None:
-
-            raise RuntimeError("sounddevice is not installed")
-
-        hostapis = sd.query_hostapis()
-
-        wasapi_index = next(
-            (i for i, api in enumerate(hostapis) if "WASAPI" in api["name"]),
-            None,
-        )
-
-        if wasapi_index is None:
-
-            raise RuntimeError("WASAPI host API not available on this system")
-
-        devices = sd.query_devices()
-
-        if device is not None:
-
-            if isinstance(device, int):
-
-                info = devices[device]
-
-                if info["hostapi"] != wasapi_index or info["max_output_channels"] < 1:
-
-                    raise RuntimeError(f"device {device} is not a WASAPI output device")
-
-                return device
-
-            name = str(device).lower()
-
-            for i, info in enumerate(devices):
-
-                if (
-                    info["hostapi"] == wasapi_index
-                    and info["max_output_channels"] >= 1
-                    and name in info["name"].lower()
-                ):
-
-                    return i
-
-            raise RuntimeError(f"no WASAPI output device matching '{device}'")
-
-        # 1. Prefer the WASAPI hostapi's own default output, if set.
-        candidate = hostapis[wasapi_index]["default_output_device"]
-
-        if candidate is not None and candidate >= 0:
-
-            return candidate
-
-        #
-        # 2. Windows frequently reports -1 for the *WASAPI-specific*
-        # default output even though WASAPI is available. Match the
-        # *system* default output device (sd.default.device) by name
-        # against the WASAPI device list instead - this is what
-        # actually reflects "whatever is selected in Sound Settings".
-        #
-        system_default = sd.default.device[1]
-
-        if system_default is not None and system_default >= 0:
-
-            target_name = devices[system_default]["name"].lower()
-
-            for i, info in enumerate(devices):
-
-                if (
-                    info["hostapi"] == wasapi_index
-                    and info["max_output_channels"] >= 1
-                    and info["name"].lower() == target_name
-                ):
-
-                    return i
-
-        # 3. Last resort - any WASAPI output device is better than
-        # silently capturing the microphone.
-        for i, info in enumerate(devices):
-
-            if info["hostapi"] == wasapi_index and info["max_output_channels"] >= 1:
-
-                return i
-
-        raise RuntimeError("no usable WASAPI output device found")
-
-    # ---------------------------------------------------------
-
     def _retune(self, samplerate: int):
         
         self.samplerate = samplerate
@@ -319,14 +222,109 @@ class AudioInput:
 
     # ---------------------------------------------------------
 
-    def _open_wasapi_loopback_stream(self):
+    @staticmethod
+    def _wasapi_supports_loopback() -> bool:
 
-        output_index = self._find_wasapi_loopback_target(self.device)
+        if sd is None or not hasattr(sd, "WasapiSettings"):
 
-        info = sd.query_devices(output_index)
+            return False
 
-        samplerate = int(info["default_samplerate"])
-        channels = max(2, min(max(self.channels, 2), info["max_output_channels"]))
+        try:
+
+            params = inspect.signature(sd.WasapiSettings.__init__).parameters
+
+        except (TypeError, ValueError):
+
+            return False
+
+        return "loopback" in params
+    
+    # ---------------------------------------------------------
+    # WASAPI loopback helpers (Windows only, via PyAudioWPatch)
+    # ---------------------------------------------------------
+
+    @staticmethod
+    def list_loopback_devices():
+        """
+        Print every WASAPI loopback-capable device PyAudioWPatch can
+        see. Handy for picking a specific output by name when you
+        have more than one (Speakers, Headphones, HDMI, ...).
+        """
+
+        if pyaudio is None:
+
+            print(
+                "[AudioInput] PyAudioWPatch is not installed - "
+                "run: pip install PyAudioWPatch"
+            )
+            return
+
+        pa = pyaudio.PyAudio()
+
+        try:
+
+            for info in pa.get_loopback_device_info_generator():
+
+                print(f"[{info['index']}] {info['name']}")
+
+        finally:
+
+            pa.terminate()
+
+    # ---------------------------------------------------------
+
+    def _resolve_loopback_device(self, pa, device):
+
+        wasapi_info = pa.get_host_api_info_by_type(pyaudio.paWASAPI)
+
+        default_speakers = pa.get_device_info_by_index(
+            wasapi_info["defaultOutputDevice"]
+        )
+
+        if device is not None:
+
+            name = str(device).lower()
+
+            for info in pa.get_loopback_device_info_generator():
+
+                if name in info["name"].lower():
+
+                    return info
+
+            raise RuntimeError(f"no loopback device matching '{device}'")
+
+        if default_speakers.get("isLoopbackDevice"):
+
+            return default_speakers
+
+        for info in pa.get_loopback_device_info_generator():
+
+            if default_speakers["name"] in info["name"]:
+
+                return info
+
+        raise RuntimeError(
+            f"no loopback counterpart found for default output "
+            f"device '{default_speakers['name']}'"
+        )
+
+    # ---------------------------------------------------------
+
+    def _open_pyaudiowpatch_loopback_stream(self):
+
+        if pyaudio is None:
+
+            raise RuntimeError(
+                "PyAudioWPatch is not installed - "
+                "run: pip install PyAudioWPatch"
+            )
+
+        self._pa = pyaudio.PyAudio()
+
+        loopback = self._resolve_loopback_device(self._pa, self.device)
+
+        samplerate = int(loopback["defaultSampleRate"])
+        channels = max(1, int(loopback["maxInputChannels"]))
 
         if samplerate != self.samplerate:
 
@@ -339,21 +337,30 @@ class AudioInput:
 
         self.channels = channels
 
-        self._stream = sd.InputStream(
-            device=output_index,
+        def _stream_callback(in_data, frame_count, time_info, status):
+
+            samples = np.frombuffer(
+                in_data, dtype=np.float32
+            ).reshape(-1, channels)
+
+            self._callback(samples, frame_count, time_info, status)
+
+            return (None, pyaudio.paContinue)
+
+        self._pa_stream = self._pa.open(
+            format=pyaudio.paFloat32,
             channels=channels,
-            samplerate=samplerate,
-            blocksize=self.block_size,
-            latency=self.latency,
-            dtype="float32",
-            extra_settings=sd.WasapiSettings(loopback=True),
-            callback=self._callback,
+            rate=samplerate,
+            frames_per_buffer=self.block_size,
+            input=True,
+            input_device_index=loopback["index"],
+            stream_callback=_stream_callback,
         )
 
-        self._stream.start()
+        self._pa_stream.start_stream()
 
         print(
-            f"[AudioInput] WASAPI loopback capturing '{info['name']}' "
+            f"[AudioInput] WASAPI loopback capturing '{loopback['name']}' "
             f"({channels} ch @ {samplerate} Hz)."
         )
 
@@ -380,7 +387,7 @@ class AudioInput:
 
             try:
 
-                self._open_wasapi_loopback_stream()
+                self._open_pyaudiowpatch_loopback_stream()
 
                 self.stereo_available = self.channels >= 2
 
@@ -464,6 +471,19 @@ class AudioInput:
             self._stream.close()
 
             self._stream = None
+
+        if self._pa_stream is not None:
+
+            self._pa_stream.stop_stream()
+            self._pa_stream.close()
+
+            self._pa_stream = None
+
+        if self._pa is not None:
+
+            self._pa.terminate()
+
+            self._pa = None
 
     # ---------------------------------------------------------
     # Waveform ring buffer
