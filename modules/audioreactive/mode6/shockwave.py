@@ -61,25 +61,33 @@ class BlastField:
 
         cx, cy = center
 
-        for i in np.nonzero(self.alive)[0]:
+        alive_idx = np.nonzero(self.alive)[0]
 
-            life = 1.0 - (
-                self.age[i] / max(self.lifetime[i], 1e-6)
+        m = len(alive_idx)
+
+        if m == 0:
+
+            return (
+                np.zeros((0, self.segments + 1, 2), dtype=np.float32),
+                np.zeros(0, dtype=np.float32),
             )
 
-            angles = np.linspace(
-                0.0,
-                2.0 * math.pi,
-                self.segments + 1,
-            )
+        life = 1.0 - (
+            self.age[alive_idx] / np.maximum(self.lifetime[alive_idx], 1e-6)
+        )
 
-            wobble_amount = self.wobble[i] * 8.0 * life
+        angles = np.linspace(0.0, 2.0 * math.pi, self.segments + 1)
 
-            radius = self.radius[i] + wobble_amount * np.sin(angles * 6.0)
+        wobble_amount = self.wobble[alive_idx] * 8.0 * life
 
-            x = cx + radius * np.cos(angles)
-            y = cy + radius * np.sin(angles)
+        radius = (
+            self.radius[alive_idx][:, None]
+            + wobble_amount[:, None] * np.sin(angles[None, :] * 6.0)
+        )
 
-            points = np.column_stack([x, y]).astype(np.float32)
+        x = cx + radius * np.cos(angles)[None, :]
+        y = cy + radius * np.sin(angles)[None, :]
 
-            yield points, life
+        points = np.stack([x, y], axis=-1).astype(np.float32)
+
+        return points, life.astype(np.float32)

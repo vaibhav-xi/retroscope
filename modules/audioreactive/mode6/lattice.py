@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import math
@@ -7,23 +6,27 @@ import numpy as np
 
 from .theory import ALL_EDGES, edge_consonance, node_angle
 
+_EDGE_A = np.array([a for a, b in ALL_EDGES], dtype=np.int64)
+_EDGE_B = np.array([b for a, b in ALL_EDGES], dtype=np.int64)
+
+_EDGE_CONSONANCE = np.array(
+    [edge_consonance(a, b) for a, b in ALL_EDGES],
+    dtype=np.float32,
+)
+
 
 def lattice_edges(chroma, positions):
 
-    for a, b in ALL_EDGES:
+    brightness = (
+        chroma[_EDGE_A] * chroma[_EDGE_B] * _EDGE_CONSONANCE
+    ).astype(np.float32)
 
-        brightness = (
-            float(chroma[a])
-            * float(chroma[b])
-            * edge_consonance(a, b)
-        )
+    points = np.stack(
+        [positions[_EDGE_A], positions[_EDGE_B]],
+        axis=1,
+    ).astype(np.float32)
 
-        points = np.array(
-            [positions[a], positions[b]],
-            dtype=np.float32,
-        )
-
-        yield points, brightness
+    return points, brightness
 
 
 def node_pulse(pitch_class, positions, energy, base_size, gain, sides=6):

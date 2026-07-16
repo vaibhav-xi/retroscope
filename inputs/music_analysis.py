@@ -130,7 +130,7 @@ class MusicAnalyzer(AudioInput):
         input_gain: float = 1.0,
         channel: int = 0,
         channels: int = 1,
-        latency=0.2,
+        latency=None,
         muted: bool = False,
         stereo: bool = False,
         enable_band_waveforms: bool = True,
@@ -466,8 +466,8 @@ class MusicAnalyzer(AudioInput):
         
         # t0_total = perf_counter()
         
-        if status:
-            print(f"[audio] status={status}")
+        # if status:
+        #     print(f"[audio] status={status}")
 
         samples = indata[:, 0].astype(np.float32)
 

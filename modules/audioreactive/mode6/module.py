@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import platform
 
 import numpy as np
 
@@ -12,7 +11,7 @@ import config
 from core.module import Module
 from core.frame import Layer
 
-from render.primitives import Polyline
+from render.primitives import Polyline, PolylineBatch
 from render.renderable import Renderable
 from render_es2.material import Material
 
@@ -20,7 +19,6 @@ from inputs.music_analysis import MusicAnalyzer
 
 from . import theory
 from . import lattice
-from . import fractal
 from .impact import ImpactSystem
 from .shockwave import BlastField
 from .debris import Debris
@@ -28,8 +26,10 @@ from .chain import ChainFlashes, lightning_bolt
 from .tension_field import InfernoField
 from .bassline import BasslineSpiral
 from .constellation import MelodyConstellation
+from modules.audioreactive.native import fixed_dashes, life_dashes, subdivide_triangle
 
-_IS_DESKTOP = platform.system() == "Darwin"
+# _IS_DESKTOP = platform.system() == "Darwin"
+_IS_DESKTOP = True
 
 _SPECTRUM_RESOLUTION = 64 if _IS_DESKTOP else 32
 
@@ -81,6 +81,10 @@ class AudioReactiveMode6(Module):
             samplerate=config.AUDIO_SAMPLE_RATE,
             block_size=config.AUDIO_BLOCK_SIZE,
             spectrum_resolution=_SPECTRUM_RESOLUTION,
+            enable_band_waveforms=False,
+            enable_vocal_analysis=False,
+            enable_pitch_tracking=True,
+            enable_harmony=True,
         )
 
         self.rotation = 0.0
@@ -98,12 +102,13 @@ class AudioReactiveMode6(Module):
         self.embers = None
         self.chains = None
 
-        self._fractal_segments = []
+        self._fractal_segments = np.zeros((0, 2, 2), dtype=np.float32)
 
         self._dim_color = (0.0, 0.0, 0.0)
         self._bright_color = (1.0, 1.0, 1.0)
         self._dim_accent = (0.0, 0.0, 0.0)
         self._bright_accent = (1.0, 1.0, 1.0)
+        self._text_color = (1.0, 1.0, 1.0)
 
         self.inferno_renderable = None
         self.lattice_faint_renderable = None
@@ -398,7 +403,7 @@ class AudioReactiveMode6(Module):
 
         triangle = tuple(positions[pc] for pc in chord_tones)
 
-        return fractal.subdivide_triangle(
+        return subdivide_triangle(
             triangle,
             depth=_FRACTAL_DEPTH,
             jitter=_FRACTAL_JITTER,
@@ -504,21 +509,23 @@ class AudioReactiveMode6(Module):
         self.lattice_faint_renderable.clear()
         self.lattice_active_renderable.clear()
 
-        total_brightness = 0.0
-        active_count = 0
+        edge_points, edge_brightness = lattice.lattice_edges(chroma_norm, positions)
 
-        for points, brightness in lattice.lattice_edges(chroma_norm, positions):
+        self.lattice_faint_renderable.add(PolylineBatch(points=edge_points))
 
-            self.lattice_faint_renderable.add(Polyline(points=points))
+        active_mask = edge_brightness > _ACTIVE_EDGE_THRESHOLD
 
-            if brightness > _ACTIVE_EDGE_THRESHOLD:
+        if np.any(active_mask):
 
-                self.lattice_active_renderable.add(Polyline(points=points))
+            self.lattice_active_renderable.add(
+                PolylineBatch(points=edge_points[active_mask])
+            )
 
-                total_brightness += brightness
-                active_count += 1
+            avg_brightness = float(edge_brightness[active_mask].mean())
 
-        avg_brightness = total_brightness / active_count if active_count else 0.0
+        else:
+
+            avg_brightness = 0.0
 
         self.lattice_active_renderable.material = Material(
             color=_lerp_color(
@@ -535,17 +542,19 @@ class AudioReactiveMode6(Module):
 
         self.node_renderable.clear()
 
+        node_points = np.empty((12, 7, 2), dtype=np.float32)
+
         for pitch_class in range(12):
 
             energy = float(chroma_norm[pitch_class]) + abs(
                 float(self.impact.node_impulse[pitch_class])
             ) / _NODE_GAIN
 
-            points = lattice.node_pulse(
+            node_points[pitch_class] = lattice.node_pulse(
                 pitch_class, positions, energy, _NODE_BASE_SIZE, _NODE_GAIN
             )
 
-            self.node_renderable.add(Polyline(points=points))
+        self.node_renderable.add(PolylineBatch(points=node_points))
 
         #
         # Chord triangle.
@@ -570,17 +579,14 @@ class AudioReactiveMode6(Module):
 
         self.fractal_renderable.clear()
 
-        for a, b in self._fractal_segments:
+        if self._fractal_segments.shape[0] > 0:
 
-            points = np.array(
-                [
-                    [a[0] * scale + cx, a[1] * scale + cy],
-                    [b[0] * scale + cx, b[1] * scale + cy],
-                ],
-                dtype=np.float32,
-            )
+            fractal_points = self._fractal_segments.copy()
 
-            self.fractal_renderable.add(Polyline(points=points))
+            fractal_points[:, :, 0] = fractal_points[:, :, 0] * scale + cx
+            fractal_points[:, :, 1] = fractal_points[:, :, 1] * scale + cy
+
+            self.fractal_renderable.add(PolylineBatch(points=fractal_points))
 
         self.fractal_renderable.material = Material(
             color=_lerp_color(self._dim_accent, self._bright_color, min(1.0, audio.tension + flash * 0.5)),
@@ -631,21 +637,13 @@ class AudioReactiveMode6(Module):
 
         spark_positions, spark_life = self.constellation.points()
 
-        for (x, y), life in zip(spark_positions, spark_life):
-
-            size = 2.0 + life * 5.0
-
-            self.constellation_renderable.add(
-                Polyline(
-                    points=np.array(
-                        [
-                            [cx + x - size, cy + y],
-                            [cx + x + size, cy + y],
-                        ],
-                        dtype=np.float32,
-                    )
+        self.constellation_renderable.add(
+            PolylineBatch(
+                points=life_dashes(
+                    spark_positions, spark_life, center=(cx, cy), size_base=2.0, size_scale=5.0
                 )
             )
+        )
 
         self.constellation_renderable.material = Material(
             color=_lerp_color(self._text_color, self._bright_color, flash),
@@ -658,9 +656,11 @@ class AudioReactiveMode6(Module):
 
         self.blast_renderable.clear()
 
-        for points, life in self.blasts.rings((cx, cy)):
+        blast_points, _ = self.blasts.rings((cx, cy))
 
-            self.blast_renderable.add(Polyline(points=points))
+        if blast_points.shape[0] > 0:
+
+            self.blast_renderable.add(PolylineBatch(points=blast_points))
 
         self.blast_renderable.material = Material(
             color=_lerp_color(self._dim_accent, self._bright_color, 0.4 + flash * 0.4),
@@ -673,9 +673,11 @@ class AudioReactiveMode6(Module):
 
         self.boom_renderable.clear()
 
-        for points, life in self.booms.rings((cx, cy)):
+        boom_points, _ = self.booms.rings((cx, cy))
 
-            self.boom_renderable.add(Polyline(points=points))
+        if boom_points.shape[0] > 0:
+
+            self.boom_renderable.add(PolylineBatch(points=boom_points))
 
         self.boom_renderable.material = Material(
             color=_lerp_color(self._bright_accent, self._bright_color, flash),
@@ -688,17 +690,20 @@ class AudioReactiveMode6(Module):
 
         self.debris_renderable.clear()
 
-        heads, tails, life = self.debris.segments()
+        heads, tails, _ = self.debris.segments()
 
-        for (hx, hy), (tx, ty) in zip(heads, tails):
+        if heads.shape[0] > 0:
+
+            heads = heads.copy()
+            tails = tails.copy()
+
+            heads[:, 0] += cx
+            heads[:, 1] += cy
+            tails[:, 0] += cx
+            tails[:, 1] += cy
 
             self.debris_renderable.add(
-                Polyline(
-                    points=np.array(
-                        [[hx + cx, hy + cy], [tx + cx, ty + cy]],
-                        dtype=np.float32,
-                    )
-                )
+                PolylineBatch(points=np.stack([heads, tails], axis=1))
             )
 
         self.debris_renderable.material = Material(
@@ -708,17 +713,20 @@ class AudioReactiveMode6(Module):
 
         self.ember_renderable.clear()
 
-        ember_heads, ember_tails, ember_life = self.embers.segments()
+        ember_heads, ember_tails, _ = self.embers.segments()
 
-        for (hx, hy), (tx, ty) in zip(ember_heads, ember_tails):
+        if ember_heads.shape[0] > 0:
+
+            ember_heads = ember_heads.copy()
+            ember_tails = ember_tails.copy()
+
+            ember_heads[:, 0] += cx
+            ember_heads[:, 1] += cy
+            ember_tails[:, 0] += cx
+            ember_tails[:, 1] += cy
 
             self.ember_renderable.add(
-                Polyline(
-                    points=np.array(
-                        [[hx + cx, hy + cy], [tx + cx, ty + cy]],
-                        dtype=np.float32,
-                    )
-                )
+                PolylineBatch(points=np.stack([ember_heads, ember_tails], axis=1))
             )
 
         self.ember_renderable.material = Material(
@@ -728,6 +736,11 @@ class AudioReactiveMode6(Module):
 
         #
         # Chain lightning.
+        #
+        # NOTE: capacity is only 20 and bolts have varying point
+        # counts (depth 3 vs 4), so batching isn't worth it here -
+        # GeometryBuilder's grouping already turns these into one
+        # native call per renderable regardless.
         #
 
         self.chain_renderable.clear()
@@ -758,19 +771,11 @@ class AudioReactiveMode6(Module):
 
         inferno_positions = self.inferno.points((0.0, 0.0), inferno_scale)
 
-        inferno_positions[:, 0] += cx
-        inferno_positions[:, 1] += cy
-
-        for x, y in inferno_positions:
-
-            self.inferno_renderable.add(
-                Polyline(
-                    points=np.array(
-                        [[x, y], [x + 0.7, y + 0.7]],
-                        dtype=np.float32,
-                    )
-                )
+        self.inferno_renderable.add(
+            PolylineBatch(
+                points=fixed_dashes(inferno_positions, dx=0.7, dy=0.7, center=(cx, cy))
             )
+        )
 
         self.inferno_renderable.material = Material(
             color=_lerp_color(self._dim_color, self._bright_accent, audio.tension),
@@ -801,4 +806,3 @@ class AudioReactiveMode6(Module):
     def shutdown(self):
 
         self.audio.stop()
-
