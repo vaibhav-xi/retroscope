@@ -1,7 +1,6 @@
 
 from __future__ import annotations
 
-import platform
 from collections import deque
 
 import numpy as np
@@ -19,7 +18,8 @@ from inputs.audio import AudioInput
 
 from .channel_analysis import ChannelAnalyzer, rose_curve, stereo_correlation
 
-_IS_DESKTOP = platform.system() == "Darwin"
+# _IS_DESKTOP = platform.system() == "Darwin"
+_IS_DESKTOP = True
 
 _CHANNEL_WINDOW = 2048
 
@@ -134,7 +134,7 @@ class AudioReactiveMode10(Module):
 
         self.grid_center_renderable = Renderable(
             material=Material(color=grid_center, line_width=1.3),
-            is_dynamic=True,
+            is_dynamic=False,
         )
 
         self.ghost_layers = []
@@ -434,7 +434,7 @@ class AudioReactiveMode10(Module):
         )
 
         self.combined_rose_renderable.add(Polyline(points=combined_points))
-        
+
         total_level = left_a.level + right_a.level + 1e-6
 
         balance = right_a.level / total_level
