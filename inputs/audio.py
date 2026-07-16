@@ -339,11 +339,17 @@ class AudioInput:
 
         def _stream_callback(in_data, frame_count, time_info, status):
 
-            samples = np.frombuffer(
-                in_data, dtype=np.float32
-            ).reshape(-1, channels)
+            raw = np.frombuffer(in_data, dtype=np.float32)
 
-            self._callback(samples, frame_count, time_info, status)
+            usable_frames = raw.size // channels
+
+            if usable_frames != frame_count:
+
+                raw = raw[: usable_frames * channels]
+
+            samples = raw.reshape(-1, channels)
+
+            self._callback(samples, samples.shape[0], time_info, status)
 
             return (None, pyaudio.paContinue)
 
