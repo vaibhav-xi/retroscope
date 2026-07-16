@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import json
+import pathlib
+import subprocess
+import sys
+
 import numpy as np
 
 import config
@@ -18,15 +23,17 @@ import platform
 _IS_WINDOWS = platform.system() == "Windows"
 
 _MIN_FRAME_SAMPLES = 64
-_MAX_FRAME_SAMPLES = 4000
+_MAX_FRAME_SAMPLES = 15000
 
-_MIN_PERSISTENCE_SECONDS = 1
-_MAX_PERSISTENCE_SECONDS = 50
-_DEFAULT_PERSISTENCE_SECONDS = 8
+_STATE_FILE = pathlib.Path(__file__).parent / "tuning.json"
 
-_ANALYSIS_SECONDS = 0.2
-
-_MIN_STROKE_POINTS = 4
+_DEFAULTS = {
+    "persistence_seconds": 0.06,
+    "blank_max_factor": 6.0,
+    "blank_min_threshold": 4.0,
+    "gain_release": 0.98,
+    "line_width": 1.0,
+}
 
 
 def _normalize_color(color_255):
@@ -56,7 +63,8 @@ class AudioReactiveMode13(Module):
 
         self._gain_peak = 1e-4
 
-        self._cycle_seconds = _DEFAULT_PERSISTENCE_SECONDS
+        self._tuning = dict(_DEFAULTS)
+        self._tuning_process = None
 
     # ---------------------------------------------------------
 
@@ -69,11 +77,48 @@ class AudioReactiveMode13(Module):
         self._bright = _normalize_color(theme.trace_core)
 
         self.trace_renderable = Renderable(
-            material=Material(color=self._bright, line_width=1.0),
+            material=Material(color=self._bright, line_width=_DEFAULTS["line_width"]),
             is_dynamic=True,
         )
 
         self._compute_layout(context)
+
+        self._launch_tuning_panel()
+
+    # ---------------------------------------------------------
+
+    def _launch_tuning_panel(self):
+
+        panel_path = pathlib.Path(__file__).parent / "tuning_panel.py"
+
+        try:
+
+            self._tuning_process = subprocess.Popen(
+                [sys.executable, str(panel_path)]
+            )
+
+        except OSError as exc:
+
+            print(
+                f"[Mode13] could not launch tuning panel ({exc}) - "
+                f"using defaults."
+            )
+
+    # ---------------------------------------------------------
+
+    def _poll_tuning(self):
+
+        try:
+
+            if _STATE_FILE.exists():
+
+                self._tuning.update(
+                    json.loads(_STATE_FILE.read_text())
+                )
+
+        except (ValueError, OSError):
+
+            pass
 
     # ---------------------------------------------------------
 
@@ -117,11 +162,12 @@ class AudioReactiveMode13(Module):
     # ---------------------------------------------------------
 
     @staticmethod
-    def _split_on_jumps(points, max_factor: float = 6.0, min_threshold: float = 4.0):
+    def _split_on_jumps(points, max_factor: float, min_threshold: float):
         """
         Beam blanking approximation - any point-to-point jump much
         larger than the typical spacing is a reposition, not a
-        stroke, so it starts a new disconnected segment.
+        stroke, so it starts a new disconnected segment instead of
+        being drawn as a visible line.
         """
 
         if len(points) < 2:
@@ -146,41 +192,6 @@ class AudioReactiveMode13(Module):
 
     # ---------------------------------------------------------
 
-    def _measure_cycle_seconds(self, audio):
-        analysis_samples = int(_ANALYSIS_SECONDS * audio.samplerate)
-
-        left, right = audio.recent_stereo(analysis_samples)
-
-        if len(left) < _MIN_STROKE_POINTS * 2:
-
-            return None
-
-        peak = max(
-            float(np.max(np.abs(left))),
-            float(np.max(np.abs(right))),
-            1e-4,
-        )
-
-        if peak < 0.02:
-
-            return None
-
-        gain = 0.9 / max(peak, 0.05)
-
-        points = self._xy_trace(left, right, self.rect, gain)
-
-        strokes = self._split_on_jumps(points)
-
-        lengths = [len(s) for s in strokes if len(s) >= _MIN_STROKE_POINTS]
-
-        if not lengths:
-
-            return None
-
-        return float(np.median(lengths)) / audio.samplerate
-
-    # ---------------------------------------------------------
-
     def update(self, context):
 
         pass
@@ -191,24 +202,26 @@ class AudioReactiveMode13(Module):
 
         audio = self.audio
 
-        measured = self._measure_cycle_seconds(audio)
+        self._poll_tuning()
 
-        if measured is not None:
+        persistence_seconds = self._tuning["persistence_seconds"]
+        blank_max_factor = self._tuning["blank_max_factor"]
+        blank_min_threshold = self._tuning["blank_min_threshold"]
+        gain_release = self._tuning["gain_release"]
+        line_width = self._tuning["line_width"]
 
-            target = min(
-                _MAX_PERSISTENCE_SECONDS,
-                max(_MIN_PERSISTENCE_SECONDS, measured * 1.15),
-            )
-
-            self._cycle_seconds += (target - self._cycle_seconds) * 0.08
-
-        needed = int(round(self._cycle_seconds * audio.samplerate))
+        needed = int(round(persistence_seconds * audio.samplerate))
 
         needed = max(_MIN_FRAME_SAMPLES, min(_MAX_FRAME_SAMPLES, needed))
 
         left, right = audio.recent_stereo(needed)
 
         self.trace_renderable.clear()
+
+        self.trace_renderable.material = Material(
+            color=self._bright,
+            line_width=line_width,
+        )
 
         if len(left) >= 2:
 
@@ -218,13 +231,17 @@ class AudioReactiveMode13(Module):
                 1e-4,
             )
 
-            self._gain_peak = max(peak, self._gain_peak * 0.98)
+            self._gain_peak = max(peak, self._gain_peak * gain_release)
 
             gain = 0.9 / max(self._gain_peak, 0.05)
 
             points = self._xy_trace(left, right, self.rect, gain)
 
-            for stroke in self._split_on_jumps(points):
+            for stroke in self._split_on_jumps(
+                points,
+                max_factor=blank_max_factor,
+                min_threshold=blank_min_threshold,
+            ):
 
                 if len(stroke) >= 2:
 
@@ -237,3 +254,7 @@ class AudioReactiveMode13(Module):
     def shutdown(self):
 
         self.audio.stop()
+
+        if self._tuning_process is not None:
+
+            self._tuning_process.terminate()
