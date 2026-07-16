@@ -1,7 +1,6 @@
 
 from __future__ import annotations
 
-import platform
 from collections import deque
 
 import numpy as np
@@ -17,7 +16,8 @@ from render_es2.material import Material
 
 from inputs.audio import AudioInput
 
-_IS_DESKTOP = platform.system() == "Darwin"
+# _IS_DESKTOP = platform.system() == "Darwin"
+_IS_DESKTOP = True
 
 _TRACE_WINDOW_SAMPLES = 900 if _IS_DESKTOP else 500
 _TRACE_POINTS = 500 if _IS_DESKTOP else 260
@@ -91,7 +91,7 @@ class AudioReactiveMode9(Module):
 
         self.grid_center_renderable = Renderable(
             material=Material(color=grid_center, line_width=1.3),
-            is_dynamic=True,
+            is_dynamic=False,
         )
 
         self.trace_layers = []
@@ -243,7 +243,7 @@ class AudioReactiveMode9(Module):
     # ---------------------------------------------------------
 
     def update(self, context):
-        
+
         pass
 
     # ---------------------------------------------------------
