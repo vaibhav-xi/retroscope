@@ -63,7 +63,7 @@ PLUGINS_DIR = "plugins"
 
 AUDIO_DEVICE = "retroscope_sink.monitor" if _IS_LINUX else None  # None = system default input device
 
-AUDIO_SAMPLE_RATE = 44100
+AUDIO_SAMPLE_RATE = 48000 if _IS_LINUX else 44100
 
 AUDIO_BLOCK_SIZE = 1024
 
