@@ -1,7 +1,4 @@
-
 from __future__ import annotations
-
-from collections import deque
 
 import numpy as np
 
@@ -20,31 +17,21 @@ import platform
 
 _IS_WINDOWS = platform.system() == "Windows"
 
-# _IS_DESKTOP = platform.system() == "Darwin"
 _IS_DESKTOP = True
 
 _TRACE_WINDOW_SAMPLES = 900 if _IS_DESKTOP else 500
 _TRACE_POINTS = 500 if _IS_DESKTOP else 260
-_PERSISTENCE_LAYERS = 5 if _IS_DESKTOP else 3
-
 
 def _normalize_color(color_255):
 
     return tuple(c / 255.0 for c in color_255)
 
 
-def _lerp_color(a, b, t):
-
-    t = max(0.0, min(1.0, t))
-
-    return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
-
-
-class AudioReactiveMode9(Module):
+class AudioReactiveMode11(Module):
 
     def __init__(self):
 
-        super().__init__("Audio Reactive - Mode 9 (Vector Scope)")
+        super().__init__("Audio Reactive - Mode 11 (Vector Scope, Single Line)")
 
         self.audio = AudioInput(
             device=config.AUDIO_DEVICE,
@@ -64,9 +51,7 @@ class AudioReactiveMode9(Module):
         self.grid_minor_renderable = None
         self.grid_center_renderable = None
 
-        self.trace_layers = []
-
-        self._history = deque(maxlen=_PERSISTENCE_LAYERS)
+        self.trace_renderable = None
 
     # ---------------------------------------------------------
 
@@ -99,22 +84,11 @@ class AudioReactiveMode9(Module):
             is_dynamic=False,
         )
 
-        self.trace_layers = []
-
-        for i in range(_PERSISTENCE_LAYERS):
-
-            t = (i + 1) / _PERSISTENCE_LAYERS
-
-            color = _lerp_color(self._dim, self._bright, t * t)
-
-            width = 1.0 + t * 1.6
-
-            self.trace_layers.append(
-                Renderable(
-                    material=Material(color=color, line_width=width),
-                    is_dynamic=True,
-                )
-            )
+        # Single trace renderable, no persistence stack.
+        self.trace_renderable = Renderable(
+            material=Material(color=self._bright, line_width=2.0),
+            is_dynamic=True,
+        )
 
         self._compute_layout(context)
         self._build_graticule()
@@ -224,6 +198,29 @@ class AudioReactiveMode9(Module):
     # ---------------------------------------------------------
 
     @staticmethod
+    def _trigger_offset(reference, search_span: int) -> int:
+
+        span = min(search_span, len(reference) - 1)
+
+        if span <= 0:
+
+            return 0
+
+        segment = reference[:span]
+
+        signs = np.signbit(segment)
+
+        crossings = np.flatnonzero(signs[:-1] & ~signs[1:])
+
+        if len(crossings) == 0:
+
+            return 0
+
+        return int(crossings[0]) + 1
+
+    # ---------------------------------------------------------
+
+    @staticmethod
     def _xy_trace(x_samples, y_samples, rect, gain: float):
 
         x0, y0, x1, y1 = rect
@@ -259,6 +256,17 @@ class AudioReactiveMode9(Module):
 
         left, right = audio.recent_stereo(_TRACE_WINDOW_SAMPLES)
 
+        # Trigger on the left channel so a periodic waveform is always
+        # sampled at the same phase. This is what keeps the shape
+        # drawn as a single stable line instead of a jittery, doubled
+        # image.
+        offset = self._trigger_offset(left, search_span=len(left) // 3 or 1)
+
+        if offset:
+
+            left = left[offset:]
+            right = right[offset:]
+
         x_ds, y_ds = self._downsample_pair(left, right, _TRACE_POINTS)
 
         if len(x_ds):
@@ -275,42 +283,18 @@ class AudioReactiveMode9(Module):
 
         gain = 0.92 / max(peak, 0.03)
 
+        self.trace_renderable.clear()
+
         if len(x_ds) >= 2:
 
             points = self._xy_trace(x_ds, y_ds, self.rect, gain)
 
-        else:
+            if len(points) >= 2:
 
-            points = np.zeros((0, 2), dtype=np.float32)
-
-        self._history.append(points)
-
-        history = list(self._history)
-
-        offset = len(self.trace_layers) - len(history)
-
-        for renderable in self.trace_layers:
-
-            renderable.clear()
-
-        for i, pts in enumerate(history):
-
-            renderable = self.trace_layers[offset + i]
-
-            if len(pts) >= 2:
-
-                renderable.add(Polyline(points=pts))
-
-        if audio.stereo_available:
-
-            crosshair_color = self.grid_center_renderable.material.color
-
-        else:
-
-            crosshair_color = _lerp_color(self._dim, self._warn, 0.6)
+                self.trace_renderable.add(Polyline(points=points))
 
         self.grid_center_renderable.material = Material(
-            color=crosshair_color if not audio.stereo_available else self._bright,
+            color=self._bright if audio.stereo_available else self._warn,
             line_width=1.3,
         )
 
@@ -318,9 +302,7 @@ class AudioReactiveMode9(Module):
         frame.add_renderable(self.grid_minor_renderable, Layer.BACKGROUND)
         frame.add_renderable(self.grid_center_renderable, Layer.BACKGROUND)
 
-        for renderable in self.trace_layers:
-
-            frame.add_renderable(renderable, Layer.MAIN)
+        frame.add_renderable(self.trace_renderable, Layer.MAIN)
 
     # ---------------------------------------------------------
 

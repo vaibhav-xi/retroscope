@@ -80,6 +80,7 @@ class App:
         from modules.audioreactive.mode8.module import AudioReactiveMode8
         from modules.audioreactive.mode9.module import AudioReactiveMode9
         from modules.audioreactive.mode10.module import AudioReactiveMode10
+        from modules.audioreactive.mode11.module import AudioReactiveMode11
 
         # self.manager.register(
         #     GridModule()
@@ -129,13 +130,17 @@ class App:
         #     AudioReactiveMode8()
         # )
 
-        self.manager.register(
-            AudioReactiveMode9()
-        )
+        # self.manager.register(
+        #     AudioReactiveMode9()
+        # )
 
         # self.manager.register(
         #     AudioReactiveMode10()
         # )
+        
+        self.manager.register(
+            AudioReactiveMode11()
+        )
 
         self.manager.initialize(
             self.context

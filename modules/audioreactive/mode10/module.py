@@ -18,6 +18,10 @@ from inputs.audio import AudioInput
 
 from .channel_analysis import ChannelAnalyzer, rose_curve, stereo_correlation
 
+import platform
+
+_IS_WINDOWS = platform.system() == "Windows"
+
 # _IS_DESKTOP = platform.system() == "Darwin"
 _IS_DESKTOP = True
 
@@ -63,6 +67,7 @@ class AudioReactiveMode10(Module):
             samplerate=config.AUDIO_SAMPLE_RATE,
             block_size=config.AUDIO_BLOCK_SIZE,
             stereo=True,
+            loopback=_IS_WINDOWS,
         )
 
         self.left_analyzer = None

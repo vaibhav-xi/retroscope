@@ -1,5 +1,6 @@
-
 from __future__ import annotations
+
+import platform
 
 import numpy as np
 
@@ -10,6 +11,9 @@ try:
 except ImportError:
 
     sd = None
+
+
+_IS_WINDOWS = platform.system() == "Windows"
 
 
 class AudioInput:
@@ -27,6 +31,7 @@ class AudioInput:
         latency=None,
         muted: bool = False,
         stereo: bool = False,
+        loopback: bool = False,
     ):
 
         self.device = device
@@ -40,13 +45,18 @@ class AudioInput:
         self.channels = max(channels, channel + 1)
         self.latency = latency
         self.muted = bool(muted)
-        
+
         self.stereo_requested = bool(stereo)
         self.stereo_available = False
 
+        # WASAPI "record what you hear" loopback. Only meaningful on
+        # Windows - ignored everywhere else so mac/BlackHole setups
+        # keep working unchanged.
+        self.loopback = bool(loopback) and _IS_WINDOWS
+
         self._stream = None
         self._window = np.hanning(block_size).astype(np.float32)
-        
+
         self.level: float = 0.0
         self.bands = np.zeros(band_count, dtype=np.float32)
         self.spectrum = np.zeros(spectrum_resolution, dtype=np.float32)
@@ -133,6 +143,157 @@ class AudioInput:
         self.channel = channel
 
     # ---------------------------------------------------------
+    # WASAPI loopback helpers (Windows only)
+    # ---------------------------------------------------------
+
+    @staticmethod
+    def list_wasapi_output_devices():
+        if sd is None:
+
+            print("[AudioInput] sounddevice is not installed.")
+            return
+
+        hostapis = sd.query_hostapis()
+
+        wasapi_index = next(
+            (i for i, api in enumerate(hostapis) if "WASAPI" in api["name"]),
+            None,
+        )
+
+        if wasapi_index is None:
+
+            print("[AudioInput] WASAPI is not available on this system.")
+            return
+
+        for i, info in enumerate(sd.query_devices()):
+
+            if info["hostapi"] == wasapi_index and info["max_output_channels"] >= 1:
+
+                print(f"[{i}] {info['name']}  ({info['max_output_channels']} ch)")
+
+    # ---------------------------------------------------------
+
+    @staticmethod
+    def _find_wasapi_loopback_target(device):
+
+        if sd is None:
+
+            raise RuntimeError("sounddevice is not installed")
+
+        hostapis = sd.query_hostapis()
+
+        wasapi_index = next(
+            (i for i, api in enumerate(hostapis) if "WASAPI" in api["name"]),
+            None,
+        )
+
+        if wasapi_index is None:
+
+            raise RuntimeError("WASAPI host API not available on this system")
+
+        if device is None:
+
+            output_index = hostapis[wasapi_index]["default_output_device"]
+
+            if output_index < 0:
+
+                raise RuntimeError("no default WASAPI output device")
+
+            return output_index
+
+        devices = sd.query_devices()
+
+        if isinstance(device, int):
+
+            info = devices[device]
+
+            if info["hostapi"] != wasapi_index or info["max_output_channels"] < 1:
+
+                raise RuntimeError(f"device {device} is not a WASAPI output device")
+
+            return device
+
+        # Treat `device` as a name substring, e.g. "Speakers", "Realtek".
+        name = str(device).lower()
+
+        for i, info in enumerate(devices):
+
+            if (
+                info["hostapi"] == wasapi_index
+                and info["max_output_channels"] >= 1
+                and name in info["name"].lower()
+            ):
+
+                return i
+
+        raise RuntimeError(f"no WASAPI output device matching '{device}'")
+
+    # ---------------------------------------------------------
+
+    def _retune(self, samplerate: int):
+        
+        self.samplerate = samplerate
+
+        self._freqs = np.fft.rfftfreq(self.block_size, d=1.0 / samplerate)
+
+        nyquist = samplerate * 0.5
+
+        self._band_edges = np.geomspace(40.0, nyquist, self.band_count + 1)
+        self._spectrum_edges = np.geomspace(40.0, nyquist, self.spectrum_resolution + 1)
+
+        self._waveform_capacity = max(
+            self.block_size * 2,
+            int(self.waveform_history_seconds * samplerate),
+        )
+
+        self._waveform_buffer = np.zeros(self._waveform_capacity, dtype=np.float32)
+        self._waveform_write = 0
+
+        self._left_buffer = np.zeros(self._waveform_capacity, dtype=np.float32)
+        self._right_buffer = np.zeros(self._waveform_capacity, dtype=np.float32)
+        self._stereo_write = 0
+
+    # ---------------------------------------------------------
+
+    def _open_wasapi_loopback_stream(self):
+
+        output_index = self._find_wasapi_loopback_target(self.device)
+
+        info = sd.query_devices(output_index)
+
+        samplerate = int(info["default_samplerate"])
+        channels = max(2, min(max(self.channels, 2), info["max_output_channels"]))
+
+        if samplerate != self.samplerate:
+
+            print(
+                f"[AudioInput] WASAPI loopback device runs at "
+                f"{samplerate} Hz, adjusting from {self.samplerate} Hz."
+            )
+
+            self._retune(samplerate)
+
+        self.channels = channels
+
+        self._stream = sd.InputStream(
+            device=output_index,
+            channels=channels,
+            samplerate=samplerate,
+            blocksize=self.block_size,
+            latency=self.latency,
+            dtype="float32",
+            extra_settings=sd.WasapiSettings(loopback=True),
+            callback=self._callback,
+        )
+
+        self._stream.start()
+
+        print(
+            f"[AudioInput] WASAPI loopback capturing '{info['name']}' "
+            f"({channels} ch @ {samplerate} Hz)."
+        )
+
+    # ---------------------------------------------------------
 
     def start(self):
 
@@ -150,6 +311,25 @@ class AudioInput:
         if self.stereo_requested:
 
             requested_channels = max(requested_channels, 2)
+
+        if self.loopback:
+
+            try:
+
+                self._open_wasapi_loopback_stream()
+
+                self.stereo_available = self.channels >= 2
+
+                return
+
+            except Exception as exc:
+
+                print(
+                    f"[AudioInput] WASAPI loopback unavailable ({exc}) "
+                    f"- falling back to a regular input device."
+                )
+
+                self.loopback = False
 
         try:
 
@@ -468,7 +648,7 @@ class AudioInput:
     # ---------------------------------------------------------
 
     def _bucket(self, magnitude, edges, peaks):
-        
+
         count = len(edges) - 1
 
         out = np.empty(count, dtype=np.float32)
