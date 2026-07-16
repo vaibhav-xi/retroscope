@@ -465,6 +465,9 @@ class MusicAnalyzer(AudioInput):
     def _callback(self, indata, frames, time_info, status):
         
         # t0_total = perf_counter()
+        
+        if status:
+            print(f"[audio] status={status}")
 
         samples = indata[:, 0].astype(np.float32)
 
