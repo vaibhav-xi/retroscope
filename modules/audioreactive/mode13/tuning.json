@@ -1,1 +1,1 @@
-{"persistence_seconds": 5.9055809523809515, "point_stride": 2.4000000000000004, "blank_max_factor": 3.75952380952381, "blank_min_threshold": 0.5, "gain_release": 0.9016500000000001, "gain_target": 1.0, "gain_floor": 0.01, "smoothing": 1.0285714285714285, "line_width": 1.1721428571428572}
+{"persistence_seconds": 3.620323809523809, "point_stride": 1.0, "blank_max_factor": 9.685714285714285, "blank_min_threshold": 0.5, "gain_release": 0.9252214285714286, "gain_target": 1.0, "gain_floor": 0.01, "smoothing": 6.761904761904762, "line_width": 1.0752380952380953}

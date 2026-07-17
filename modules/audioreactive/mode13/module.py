@@ -28,15 +28,15 @@ _MAX_FRAME_SAMPLES = 15000
 _STATE_FILE = pathlib.Path(__file__).parent / "tuning.json"
 
 _DEFAULTS = {
-    "persistence_seconds": 0.02,
-    "point_stride": 1.0,
-    "blank_max_factor": 6.0,
-    "blank_min_threshold": 4.0,
-    "gain_release": 0.98,
-    "gain_target": 0.9,
-    "gain_floor": 0.05,
-    "smoothing": 0.0,
-    "line_width": 1.0,
+    "persistence_seconds": 3.620,
+    "point_stride": 1.000,
+    "blank_max_factor": 9.686,
+    "blank_min_threshold": 0.500,
+    "gain_release": 0.925,
+    "gain_target": 1.000,
+    "gain_floor": 0.010,
+    "smoothing": 6.762,
+    "line_width": 1.075,
 }
 
 
