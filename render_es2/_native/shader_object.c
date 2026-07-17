@@ -14,6 +14,8 @@ Shader_init(
     self->program = 0;
     self->color_location = -1;
     self->alpha_location = -1;
+    self->size_location = -1;
+    self->intensity_location = -1;
 
     return 0;
 }
@@ -81,6 +83,38 @@ Shader_set_alpha(
         self->alpha_location,
         alpha
     );
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+Shader_set_size(
+    ShaderObject *self,
+    PyObject *args
+)
+{
+    float size;
+
+    if (!PyArg_ParseTuple(args, "f", &size))
+        return NULL;
+
+    glUniform1f(self->size_location, size);
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+Shader_set_intensity(
+    ShaderObject *self,
+    PyObject *args
+)
+{
+    float intensity;
+
+    if (!PyArg_ParseTuple(args, "f", &intensity))
+        return NULL;
+
+    glUniform1f(self->intensity_location, intensity);
 
     Py_RETURN_NONE;
 }
@@ -241,6 +275,12 @@ Shader_create(
             "u_alpha"
         );
 
+    self->size_location =
+        glGetUniformLocation(program, "u_size");
+
+    self->intensity_location =
+        glGetUniformLocation(program, "u_intensity");
+
     printf("Shader_create\n");
     fflush(stdout);
 
@@ -292,6 +332,20 @@ static PyMethodDef Shader_methods[] =
     {
         "create",
         (PyCFunction)Shader_create,
+        METH_VARARGS,
+        NULL
+    },
+
+    {
+        "set_size",
+        (PyCFunction)Shader_set_size,
+        METH_VARARGS,
+        NULL
+    },
+
+    {
+        "set_intensity",
+        (PyCFunction)Shader_set_intensity,
         METH_VARARGS,
         NULL
     },

@@ -266,6 +266,7 @@ class AudioReactiveMode13(Module):
             line_width=line_width,
             alpha=trace_alpha,
             additive=True,
+            glow=40.0,
         )
 
         if len(left) >= 2:

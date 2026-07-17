@@ -11,5 +11,7 @@ class Material:
     line_width: float = 1.0
 
     alpha: float = 1.0
-    
+
     additive: bool = False
+
+    glow: float = 300.0

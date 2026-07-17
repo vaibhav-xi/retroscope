@@ -118,7 +118,7 @@ build(
      */
 
     int max_floats =
-        (int)(point_count - 1) * 12;
+        (int)(point_count - 1) * 30;
 
     int old_count =
         vertex_buffer->count;
@@ -291,7 +291,7 @@ build_many(
         if (point_count >= 2)
         {
             total_max_floats +=
-                (point_count - 1) * 12;
+                (point_count - 1) * 30;
         }
     }
 

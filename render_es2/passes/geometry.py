@@ -50,6 +50,14 @@ class GeometryPass(RenderPass):
             self.shader.set_alpha(
                 renderable.material.alpha
             )
+            
+            self.shader.set_size(
+                renderable.material.line_width * 0.5
+            )
+
+            self.shader.set_intensity(
+                renderable.material.glow
+            )
 
             if renderable.material.additive:
 

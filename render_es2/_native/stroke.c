@@ -1,6 +1,5 @@
 #include "stroke.h"
 #include "geometry.h"
-#include <stdio.h>
 
 static inline float ndc_x(float x, float screen_width)
 {
@@ -12,14 +11,18 @@ static inline float ndc_y(float y, float screen_height)
     return 1.0f - (2.0f * y / screen_height);
 }
 
-static inline void push2(
+static inline void push5(
     float **dst,
-    float x,
-    float y
+    float x, float y,
+    float u, float v,
+    float len
 )
 {
     *(*dst)++ = x;
     *(*dst)++ = y;
+    *(*dst)++ = u;
+    *(*dst)++ = v;
+    *(*dst)++ = len;
 }
 
 int stroke_build(
@@ -51,43 +54,39 @@ int stroke_build(
         float dx = x2 - x1;
         float dy = y2 - y1;
 
-        geometry_normalize(
-            &dx,
-            &dy
-        );
+        float len = geometry_length(dx, dy);
+
+        geometry_normalize(&dx, &dy);
 
         float px;
         float py;
 
-        geometry_perpendicular(
-            dx,
-            dy,
-            &px,
-            &py
-        );
+        geometry_perpendicular(dx, dy, &px, &py);
 
-        float l1x = x1 + px * half_width;
-        float l1y = y1 + py * half_width;
+        float ex = dx * half_width;
+        float ey = dy * half_width;
 
-        float r1x = x1 - px * half_width;
-        float r1y = y1 - py * half_width;
+        float nx = px * half_width;
+        float ny = py * half_width;
 
-        float l2x = x2 + px * half_width;
-        float l2y = y2 + py * half_width;
+        float l1x = x1 - ex + nx, l1y = y1 - ey + ny;
+        float r1x = x1 - ex - nx, r1y = y1 - ey - ny;
+        float l2x = x2 + ex + nx, l2y = y2 + ey + ny;
+        float r2x = x2 + ex - nx, r2y = y2 + ey - ny;
 
-        float r2x = x2 - px * half_width;
-        float r2y = y2 - py * half_width;
+        float u0 = -half_width;
+        float u1 = len + half_width;
+        float v0 = -half_width;
+        float v1 = half_width;
 
-        push2(&dst, ndc_x(l1x, screen_width), ndc_y(l1y, screen_height));
-        push2(&dst, ndc_x(r1x, screen_width), ndc_y(r1y, screen_height));
-        push2(&dst, ndc_x(l2x, screen_width), ndc_y(l2y, screen_height));
+        push5(&dst, ndc_x(l1x, screen_width), ndc_y(l1y, screen_height), u0, v0, len);
+        push5(&dst, ndc_x(r1x, screen_width), ndc_y(r1y, screen_height), u0, v1, len);
+        push5(&dst, ndc_x(l2x, screen_width), ndc_y(l2y, screen_height), u1, v0, len);
 
-        push2(&dst, ndc_x(l2x, screen_width), ndc_y(l2y, screen_height));
-        push2(&dst, ndc_x(r1x, screen_width), ndc_y(r1y, screen_height));
-        push2(&dst, ndc_x(r2x, screen_width), ndc_y(r2y, screen_height));
+        push5(&dst, ndc_x(l2x, screen_width), ndc_y(l2y, screen_height), u1, v0, len);
+        push5(&dst, ndc_x(r1x, screen_width), ndc_y(r1y, screen_height), u0, v1, len);
+        push5(&dst, ndc_x(r2x, screen_width), ndc_y(r2y, screen_height), u1, v1, len);
     }
 
-    int written = (int)(dst - vertices);
-
-    return written;
+    return (int)(dst - vertices);
 }

@@ -85,7 +85,7 @@ Mesh_upload(
         (VertexBufferObject *)obj;
 
     self->vertex_count =
-        vb->count / 2;
+        vb->count / 5;
 
     glBindBuffer(
         GL_ARRAY_BUFFER,
@@ -125,43 +125,29 @@ Mesh_draw(
         Py_RETURN_NONE;
     }
 
-    glBindVertexArray(
-        self->vao
-    );
+    glBindVertexArray(self->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, self->vbo);
 
-    glBindBuffer(
-        GL_ARRAY_BUFFER,
-        self->vbo
-    );
-
-    glEnableVertexAttribArray(
-        0
-    );
+    glEnableVertexAttribArray(0);
 
     glVertexAttribPointer(
+        0, 2, GL_FLOAT, GL_FALSE,
+        5 * sizeof(float),
+        (void *)0
+    );
 
-        0,
+    glEnableVertexAttribArray(1);
 
-        2,
-
-        GL_FLOAT,
-
-        GL_FALSE,
-
-        0,
-
-        0
-
+    glVertexAttribPointer(
+        1, 3, GL_FLOAT, GL_FALSE,
+        5 * sizeof(float),
+        (void *)(2 * sizeof(float))
     );
 
     glDrawArrays(
-
         GL_TRIANGLES,
-
         0,
-
         self->vertex_count
-
     );
 
     Py_RETURN_NONE;
