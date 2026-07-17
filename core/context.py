@@ -45,6 +45,8 @@ class Context:
 
     width: int = 0
     height: int = 0
+    
+    afterglow: float = 1.0
 
     # ---------------------------------------------------------
     # Theme

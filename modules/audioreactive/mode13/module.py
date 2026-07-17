@@ -27,16 +27,30 @@ _MAX_FRAME_SAMPLES = 15000
 
 _STATE_FILE = pathlib.Path(__file__).parent / "tuning.json"
 
+# _DEFAULTS = {
+#     "persistence_seconds": 3.620,
+#     "point_stride": 1.000,
+#     "blank_max_factor": 9.686,
+#     "blank_min_threshold": 0.500,
+#     "gain_release": 0.925,
+#     "gain_target": 1.000,
+#     "gain_floor": 0.010,
+#     "smoothing": 6.762,
+#     "line_width": 1.075,
+# }
+
 _DEFAULTS = {
-    "persistence_seconds": 3.620,
-    "point_stride": 1.000,
-    "blank_max_factor": 9.686,
-    "blank_min_threshold": 0.500,
-    "gain_release": 0.925,
-    "gain_target": 1.000,
-    "gain_floor": 0.010,
-    "smoothing": 6.762,
-    "line_width": 1.075,
+    "chunk_seconds": 0.01,
+    "afterglow": 0.90,
+    "trace_alpha": 0.5,
+    "point_stride": 1.0,
+    "blank_max_factor": 6.0,
+    "blank_min_threshold": 4.0,
+    "gain_release": 0.98,
+    "gain_target": 0.9,
+    "gain_floor": 0.05,
+    "smoothing": 0.0,
+    "line_width": 1.0,
 }
 
 
@@ -220,7 +234,9 @@ class AudioReactiveMode13(Module):
 
         self._poll_tuning()
 
-        persistence_seconds = self._tuning["persistence_seconds"]
+        chunk_seconds = self._tuning["chunk_seconds"]
+        afterglow = self._tuning["afterglow"]
+        trace_alpha = self._tuning["trace_alpha"]
         point_stride = max(1, int(round(self._tuning["point_stride"])))
         blank_max_factor = self._tuning["blank_max_factor"]
         blank_min_threshold = self._tuning["blank_min_threshold"]
@@ -230,7 +246,9 @@ class AudioReactiveMode13(Module):
         smoothing = self._tuning["smoothing"]
         line_width = self._tuning["line_width"]
 
-        needed = int(round(persistence_seconds * audio.samplerate))
+        context.afterglow = afterglow
+
+        needed = int(round(chunk_seconds * audio.samplerate))
 
         needed = max(_MIN_FRAME_SAMPLES, min(_MAX_FRAME_SAMPLES, needed))
 
@@ -246,6 +264,8 @@ class AudioReactiveMode13(Module):
         self.trace_renderable.material = Material(
             color=self._bright,
             line_width=line_width,
+            alpha=trace_alpha,
+            additive=True,
         )
 
         if len(left) >= 2:

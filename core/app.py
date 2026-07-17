@@ -186,7 +186,8 @@ class App:
     def draw(self):
 
         self.renderer.render(
-            self.frame
+            self.frame,
+            afterglow=self.context.afterglow,
         )
 
         self.profiler.begin("Swap")

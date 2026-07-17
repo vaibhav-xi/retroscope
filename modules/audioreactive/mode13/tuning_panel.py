@@ -7,7 +7,9 @@ _HERE = pathlib.Path(__file__).parent
 _STATE_FILE = _HERE / "tuning.json"
 
 DEFAULTS = {
-    "persistence_seconds": 0.02,
+    "chunk_seconds": 0.01,
+    "afterglow": 0.90,
+    "trace_alpha": 0.5,
     "point_stride": 1.0,
     "blank_max_factor": 6.0,
     "blank_min_threshold": 4.0,
@@ -19,7 +21,9 @@ DEFAULTS = {
 }
 
 RANGES = {
-    "persistence_seconds": (0.002, 10),
+    "chunk_seconds": (0.002, 0.05),
+    "afterglow": (0.5, 0.995),
+    "trace_alpha": (0.05, 1.0),
     "point_stride": (1.0, 8.0),
     "blank_max_factor": (1.0, 20.0),
     "blank_min_threshold": (0.5, 30.0),
