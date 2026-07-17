@@ -40,18 +40,19 @@ _STATE_FILE = pathlib.Path(__file__).parent / "tuning.json"
 # }
 
 _DEFAULTS = {
-    "chunk_seconds": 0.01,
-    "afterglow": 0.90,
-    "trace_alpha": 0.5,
-    "glow": 40.0,
+    "chunk_seconds": 0.019,
+    "afterglow": 0.500,
+    "trace_alpha": 0.064,
+    "glow": 5.0,
     "point_stride": 1.0,
-    "blank_max_factor": 6.0,
-    "blank_min_threshold": 4.0,
-    "gain_release": 0.98,
-    "gain_target": 0.9,
-    "gain_floor": 0.05,
-    "smoothing": 0.0,
-    "line_width": 1.0,
+    "blank_max_factor": 5.614,
+    "blank_min_threshold": 3.942,
+    "gain_release": 0.916,
+    "gain_target": 1.000,
+    "gain_floor": 0.010,
+    "smoothing": 8.000,
+    "line_width": 1.075,
+    "oversample": 4.567,
 }
 
 
@@ -228,6 +229,30 @@ class AudioReactiveMode13(Module):
         pass
 
     # ---------------------------------------------------------
+    
+    @staticmethod
+    def _oversample(left, right, factor: int):
+
+        factor = max(1, int(round(factor)))
+
+        n = min(len(left), len(right))
+
+        if factor <= 1 or n < 2:
+
+            return left[:n], right[:n]
+
+        src_idx = np.arange(n, dtype=np.float32)
+
+        dst_idx = np.linspace(
+            0, n - 1, (n - 1) * factor + 1, dtype=np.float32
+        )
+
+        left_up = np.interp(dst_idx, src_idx, left[:n]).astype(np.float32)
+        right_up = np.interp(dst_idx, src_idx, right[:n]).astype(np.float32)
+
+        return left_up, right_up
+    
+    # ---------------------------------------------------------
 
     def emit(self, context, frame):
 
@@ -255,6 +280,10 @@ class AudioReactiveMode13(Module):
         needed = max(_MIN_FRAME_SAMPLES, min(_MAX_FRAME_SAMPLES, needed))
 
         left, right = audio.recent_stereo(needed)
+
+        oversample = max(1, int(round(self._tuning["oversample"])))
+
+        left, right = self._oversample(left, right, oversample)
 
         if point_stride > 1:
 

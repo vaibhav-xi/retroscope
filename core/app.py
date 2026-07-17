@@ -144,13 +144,13 @@ class App:
         #     AudioReactiveMode11()
         # )
         
-        self.manager.register(
-            AudioReactiveMode12()
-        )
-        
         # self.manager.register(
-        #     AudioReactiveMode13()
+        #     AudioReactiveMode12()
         # )
+        
+        self.manager.register(
+            AudioReactiveMode13()
+        )
 
         self.manager.initialize(
             self.context

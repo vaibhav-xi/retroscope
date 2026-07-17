@@ -7,33 +7,35 @@ _HERE = pathlib.Path(__file__).parent
 _STATE_FILE = _HERE / "tuning.json"
 
 DEFAULTS = {
-    "chunk_seconds": 0.01,
-    "afterglow": 0.90,
-    "trace_alpha": 0.5,
-    "glow": 40.0,
+    "chunk_seconds": 0.019,
+    "afterglow": 0.500,
+    "trace_alpha": 0.064,
+    "glow": 5.0,
     "point_stride": 1.0,
-    "blank_max_factor": 6.0,
-    "blank_min_threshold": 4.0,
-    "gain_release": 0.98,
-    "gain_target": 0.9,
-    "gain_floor": 0.05,
-    "smoothing": 0.0,
-    "line_width": 1.0,
+    "blank_max_factor": 5.614,
+    "blank_min_threshold": 3.942,
+    "gain_release": 0.916,
+    "gain_target": 1.000,
+    "gain_floor": 0.010,
+    "smoothing": 8.000,
+    "line_width": 1.075,
+    "oversample": 4.567,
 }
 
 RANGES = {
-    "chunk_seconds": (0.002, 0.05),
-    "afterglow": (0.5, 0.995),
-    "trace_alpha": (0.05, 1.0),
+    "chunk_seconds": (0.002, 0.08),
+    "afterglow": (0.2, 0.995),
+    "trace_alpha": (0.01, 1.0),
     "glow": (5.0, 300.0),
-    "point_stride": (1.0, 8.0),
+    "point_stride": (0.5, 8.0),
     "blank_max_factor": (1.0, 20.0),
     "blank_min_threshold": (0.5, 30.0),
     "gain_release": (0.90, 0.999),
-    "gain_target": (0.3, 1.0),
-    "gain_floor": (0.01, 0.2),
-    "smoothing": (0.0, 8.0),
+    "gain_target": (0.3, 3.0),
+    "gain_floor": (0.0, 0.4),
+    "smoothing": (0.0, 12.0),
     "line_width": (0.3, 4.0),
+    "oversample": (1.0, 10.0),
 }
 
 _WIDTH = 460

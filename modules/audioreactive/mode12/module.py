@@ -178,12 +178,40 @@ class AudioReactiveMode12(Module):
         pass
 
     # ---------------------------------------------------------
+    
+    @staticmethod
+    def _oversample(left, right, factor: int):
+
+        factor = max(1, int(round(factor)))
+
+        n = min(len(left), len(right))
+
+        if factor <= 1 or n < 2:
+
+            return left[:n], right[:n]
+
+        src_idx = np.arange(n, dtype=np.float32)
+
+        dst_idx = np.linspace(
+            0, n - 1, (n - 1) * factor + 1, dtype=np.float32
+        )
+
+        left_up = np.interp(dst_idx, src_idx, left[:n]).astype(np.float32)
+        right_up = np.interp(dst_idx, src_idx, right[:n]).astype(np.float32)
+
+        return left_up, right_up
+    
+    # ---------------------------------------------------------
 
     def emit(self, context, frame):
 
         audio = self.audio
 
         left, right = audio.recent_stereo(_TRACE_WINDOW_SAMPLES)
+        
+        oversample = max(1, int(round(4)))
+        
+        left, right = self._oversample(left, right, oversample)
 
         offset = self._trigger_offset(left, search_span=len(left) // 3 or 1)
 
