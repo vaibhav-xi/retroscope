@@ -55,6 +55,11 @@ class Window:
                 glfw.OPENGL_FORWARD_COMPAT,
                 glfw.TRUE,
             )
+            
+            glfw.window_hint(
+                glfw.SAMPLES,
+                4,
+            )
 
         #
         # Raspberry Pi

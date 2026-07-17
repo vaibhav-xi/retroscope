@@ -43,6 +43,7 @@ _DEFAULTS = {
     "chunk_seconds": 0.01,
     "afterglow": 0.90,
     "trace_alpha": 0.5,
+    "glow": 40.0,
     "point_stride": 1.0,
     "blank_max_factor": 6.0,
     "blank_min_threshold": 4.0,
@@ -237,6 +238,7 @@ class AudioReactiveMode13(Module):
         chunk_seconds = self._tuning["chunk_seconds"]
         afterglow = self._tuning["afterglow"]
         trace_alpha = self._tuning["trace_alpha"]
+        glow = self._tuning["glow"]
         point_stride = max(1, int(round(self._tuning["point_stride"])))
         blank_max_factor = self._tuning["blank_max_factor"]
         blank_min_threshold = self._tuning["blank_min_threshold"]
@@ -266,7 +268,7 @@ class AudioReactiveMode13(Module):
             line_width=line_width,
             alpha=trace_alpha,
             additive=True,
-            glow=40.0,
+            glow=glow,
         )
 
         if len(left) >= 2:
