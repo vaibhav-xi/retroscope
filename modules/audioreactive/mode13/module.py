@@ -22,6 +22,8 @@ import platform
 
 _IS_WINDOWS = platform.system() == "Windows"
 
+_TUNING_ENABLED = True
+
 _MIN_FRAME_SAMPLES = 64
 _MAX_FRAME_SAMPLES = 15000
 
@@ -102,8 +104,10 @@ class AudioReactiveMode13(Module):
         )
 
         self._compute_layout(context)
+        
+        if _TUNING_ENABLED:
 
-        self._launch_tuning_panel()
+            self._launch_tuning_panel()
 
     # ---------------------------------------------------------
 
