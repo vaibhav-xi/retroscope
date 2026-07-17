@@ -28,10 +28,14 @@ _MAX_FRAME_SAMPLES = 15000
 _STATE_FILE = pathlib.Path(__file__).parent / "tuning.json"
 
 _DEFAULTS = {
-    "persistence_seconds": 0.06,
+    "persistence_seconds": 0.02,
+    "point_stride": 1.0,
     "blank_max_factor": 6.0,
     "blank_min_threshold": 4.0,
     "gain_release": 0.98,
+    "gain_target": 0.9,
+    "gain_floor": 0.05,
+    "smoothing": 0.0,
     "line_width": 1.0,
 }
 
@@ -163,12 +167,6 @@ class AudioReactiveMode13(Module):
 
     @staticmethod
     def _split_on_jumps(points, max_factor: float, min_threshold: float):
-        """
-        Beam blanking approximation - any point-to-point jump much
-        larger than the typical spacing is a reposition, not a
-        stroke, so it starts a new disconnected segment instead of
-        being drawn as a visible line.
-        """
 
         if len(points) < 2:
 
@@ -192,6 +190,24 @@ class AudioReactiveMode13(Module):
 
     # ---------------------------------------------------------
 
+    @staticmethod
+    def _smooth_stroke(points, window: int):
+
+        window = int(round(window))
+
+        if window <= 1 or len(points) < window:
+
+            return points
+
+        kernel = np.ones(window, dtype=np.float32) / window
+
+        x = np.convolve(points[:, 0], kernel, mode="valid")
+        y = np.convolve(points[:, 1], kernel, mode="valid")
+
+        return np.column_stack([x, y]).astype(np.float32)
+
+    # ---------------------------------------------------------
+
     def update(self, context):
 
         pass
@@ -205,9 +221,13 @@ class AudioReactiveMode13(Module):
         self._poll_tuning()
 
         persistence_seconds = self._tuning["persistence_seconds"]
+        point_stride = max(1, int(round(self._tuning["point_stride"])))
         blank_max_factor = self._tuning["blank_max_factor"]
         blank_min_threshold = self._tuning["blank_min_threshold"]
         gain_release = self._tuning["gain_release"]
+        gain_target = self._tuning["gain_target"]
+        gain_floor = self._tuning["gain_floor"]
+        smoothing = self._tuning["smoothing"]
         line_width = self._tuning["line_width"]
 
         needed = int(round(persistence_seconds * audio.samplerate))
@@ -215,6 +235,11 @@ class AudioReactiveMode13(Module):
         needed = max(_MIN_FRAME_SAMPLES, min(_MAX_FRAME_SAMPLES, needed))
 
         left, right = audio.recent_stereo(needed)
+
+        if point_stride > 1:
+
+            left = left[::point_stride]
+            right = right[::point_stride]
 
         self.trace_renderable.clear()
 
@@ -233,7 +258,7 @@ class AudioReactiveMode13(Module):
 
             self._gain_peak = max(peak, self._gain_peak * gain_release)
 
-            gain = 0.9 / max(self._gain_peak, 0.05)
+            gain = gain_target / max(self._gain_peak, gain_floor)
 
             points = self._xy_trace(left, right, self.rect, gain)
 
@@ -242,6 +267,8 @@ class AudioReactiveMode13(Module):
                 max_factor=blank_max_factor,
                 min_threshold=blank_min_threshold,
             ):
+
+                stroke = self._smooth_stroke(stroke, smoothing)
 
                 if len(stroke) >= 2:
 

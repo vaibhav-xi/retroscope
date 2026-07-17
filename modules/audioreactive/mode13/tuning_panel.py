@@ -7,25 +7,33 @@ _HERE = pathlib.Path(__file__).parent
 _STATE_FILE = _HERE / "tuning.json"
 
 DEFAULTS = {
-    "persistence_seconds": 0.06,
+    "persistence_seconds": 0.02,
+    "point_stride": 1.0,
     "blank_max_factor": 6.0,
     "blank_min_threshold": 4.0,
     "gain_release": 0.98,
+    "gain_target": 0.9,
+    "gain_floor": 0.05,
+    "smoothing": 0.0,
     "line_width": 1.0,
 }
 
 RANGES = {
-    "persistence_seconds": (0.01, 0.30),
+    "persistence_seconds": (0.002, 10),
+    "point_stride": (1.0, 8.0),
     "blank_max_factor": (1.0, 20.0),
     "blank_min_threshold": (0.5, 30.0),
     "gain_release": (0.90, 0.999),
-    "line_width": (0.5, 4.0),
+    "gain_target": (0.3, 1.0),
+    "gain_floor": (0.01, 0.2),
+    "smoothing": (0.0, 8.0),
+    "line_width": (0.3, 4.0),
 }
 
-_WIDTH = 420
+_WIDTH = 460
 _ROW_HEIGHT = 56
 _TRACK_X = 20
-_TRACK_WIDTH = 380
+_TRACK_WIDTH = 420
 _HANDLE_RADIUS = 8
 
 _BG = (18, 18, 18)
