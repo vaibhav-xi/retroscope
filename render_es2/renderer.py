@@ -18,6 +18,8 @@ class Renderer:
             0.0,
             1.0,
         )
+        
+        glEnable(GL_BLEND)
 
         shader_dir = (
             Path(__file__).parent

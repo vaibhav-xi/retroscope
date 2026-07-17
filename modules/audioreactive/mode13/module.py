@@ -81,7 +81,7 @@ class AudioReactiveMode13(Module):
         self._bright = _normalize_color(theme.trace_core)
 
         self.trace_renderable = Renderable(
-            material=Material(color=self._bright, line_width=_DEFAULTS["line_width"]),
+            material=Material(color=self._bright, line_width=_DEFAULTS["line_width"], alpha=0.35, additive=True),
             is_dynamic=True,
         )
 

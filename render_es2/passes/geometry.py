@@ -1,5 +1,11 @@
 from render_es2.render_pass import RenderPass
-from OpenGL.GL import glLineWidth
+from OpenGL.GL import (
+    glLineWidth,
+    glBlendFunc,
+    GL_SRC_ALPHA,
+    GL_ONE_MINUS_SRC_ALPHA,
+    GL_ONE,
+)
 
 class GeometryPass(RenderPass):
 
@@ -17,19 +23,7 @@ class GeometryPass(RenderPass):
 
             renderable = command.renderable
 
-            #
-            # Upload only when needed.
-            #
-
             if command.geometry is not None:
-                
-                # print(
-                #     "mesh",
-                #     id(renderable.mesh),
-                #     "vb",
-                #     id(command.geometry.vertex_buffer),
-                #     command.geometry.vertex_buffer.count,
-                # )
 
                 if renderable.is_dynamic:
 
@@ -52,28 +46,22 @@ class GeometryPass(RenderPass):
             self.shader.set_color(
                 renderable.material.color
             )
-            
-            #
-            # Line width.
-            #
-            # Note:
-            # Many OpenGL ES 2.0 drivers clamp this to 1.0.
-            # We keep it here so the Material API stays stable
-            # when we later render thick lines as quads.
-            #
 
-            # glLineWidth(
-            #     renderable.material.line_width
-            # )
+            self.shader.set_alpha(
+                renderable.material.alpha
+            )
+
+            if renderable.material.additive:
+
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE)
+
+            else:
+
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
             #
             # Draw.
             #
-            
-            # print(
-            #     renderable.material.color,
-            #     renderable.mesh.count,
-            # )
 
             renderable.mesh.draw(
                 self.shader

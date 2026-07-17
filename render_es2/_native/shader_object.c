@@ -13,6 +13,7 @@ Shader_init(
 {
     self->program = 0;
     self->color_location = -1;
+    self->alpha_location = -1;
 
     return 0;
 }
@@ -55,6 +56,30 @@ Shader_set_color(
         r,
         g,
         b
+    );
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+Shader_set_alpha(
+    ShaderObject *self,
+    PyObject *args
+)
+{
+    float alpha;
+
+    if (!PyArg_ParseTuple(
+            args,
+            "f",
+            &alpha))
+    {
+        return NULL;
+    }
+
+    glUniform1f(
+        self->alpha_location,
+        alpha
     );
 
     Py_RETURN_NONE;
@@ -210,6 +235,12 @@ Shader_create(
             "u_color"
         );
 
+    self->alpha_location =
+        glGetUniformLocation(
+            program,
+            "u_alpha"
+        );
+
     printf("Shader_create\n");
     fflush(stdout);
 
@@ -252,12 +283,18 @@ static PyMethodDef Shader_methods[] =
     },
 
     {
+        "set_alpha",
+        (PyCFunction)Shader_set_alpha,
+        METH_VARARGS,
+        NULL
+    },
+
+    {
         "create",
         (PyCFunction)Shader_create,
         METH_VARARGS,
         NULL
     },
-    
 
     {NULL}
 };

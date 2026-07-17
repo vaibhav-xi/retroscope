@@ -38,6 +38,14 @@ class Shader:
 
     # -------------------------------------------------
 
+    def set_alpha(self, alpha):
+
+        self.native.set_alpha(
+            float(alpha)
+        )
+
+    # -------------------------------------------------
+
     def _desktop_vertex(self, src):
 
         return (
@@ -55,8 +63,9 @@ class Shader:
         return (
             "#version 410 core\n"
             "uniform vec3 u_color;\n"
+            "uniform float u_alpha;\n"
             "out vec4 FragColor;\n"
             "void main(){\n"
-            "    FragColor = vec4(u_color, 1.0);\n"
+            "    FragColor = vec4(u_color, u_alpha);\n"
             "}"
         )

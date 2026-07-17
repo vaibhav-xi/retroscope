@@ -15,6 +15,8 @@ typedef struct
 
     GLint color_location;
 
+    GLint alpha_location;
+
 } ShaderObject;
 
 extern PyTypeObject ShaderType;
