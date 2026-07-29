@@ -39,13 +39,16 @@ PORT = None  # e.g. "/dev/ttyACM0" or "COM5" - None = auto-detect
 # Regenerated on first run if pot_mapping.json doesn't exist yet -
 # edit that file to reassign any channel to any control.
 _DEFAULT_MAPPING = {
-    "0": {"file": "modules/audioreactive/mode13/tuning.json", "key": "afterglow", "min": 0.5, "max": 0.995},
-    "1": {"file": "modules/audioreactive/mode13/tuning.json", "key": "trace_alpha", "min": 0.05, "max": 1.0},
-    "2": {"file": "modules/audioreactive/mode13/tuning.json", "key": "chunk_seconds", "min": 0.002, "max": 0.05},
-    "3": {"file": "modules/audioreactive/mode13/tuning.json", "key": "glow", "min": 5.0, "max": 300.0},
-    "4": {"file": "modules/audioreactive/mode13/tuning.json", "key": "gain_target", "min": 0.3, "max": 1.0},
-    "5": {"file": "modules/audioreactive/mode13/tuning.json", "key": "smoothing", "min": 0.0, "max": 8.0},
-    "6": {"file": "modules/audioreactive/mode13/tuning.json", "key": "line_width", "min": 0.3, "max": 4.0},
+    "connected_channels": 7,
+    "channels": {
+        "0": {"file": "modules/audioreactive/mode7/tuning.json", "key": "wave_hue", "min": 0.0, "max": 360.0},
+        "1": {"file": "modules/audioreactive/mode7/tuning.json", "key": "liss_hue", "min": 0.0, "max": 360.0},
+        "2": {"file": "modules/audioreactive/mode7/tuning.json", "key": "band_glow", "min": 0.5, "max": 3.0},
+        "3": {"file": "modules/audioreactive/mode8/tuning.json", "key": "wave_hue", "min": 0.0, "max": 360.0},
+        "4": {"file": "modules/audioreactive/mode8/tuning.json", "key": "vocal_hue", "min": 0.0, "max": 360.0},
+        "5": {"file": "modules/audioreactive/mode10/tuning.json", "key": "rose_hue", "min": 0.0, "max": 360.0},
+        "6": {"file": "modules/audioreactive/mode10/tuning.json", "key": "spin_speed", "min": 0.0, "max": 3.0},
+    },
 }
 
 
@@ -83,13 +86,11 @@ def _find_port():
 
 def main():
 
-    if serial is None:
-
-        raise RuntimeError(
-            "pyserial is not installed - run: pip install pyserial"
-        )
-
     mapping = _load_mapping()
+
+    connected = int(mapping.get("connected_channels", 0))
+
+    channels = mapping.get("channels", {})
 
     port = _find_port()
 
@@ -100,12 +101,10 @@ def main():
             "set PORT explicitly at the top of this file"
         )
 
-    print(f"[PotBridge] connecting to {port} @ {_BAUD_RATE}")
+    print(f"[PotBridge] connecting to {port} @ {_BAUD_RATE}, {connected} pot(s) expected")
 
     link = serial.Serial(port, _BAUD_RATE, timeout=1)
 
-    # Arduino resets on serial connect - give it a moment and flush
-    # the boot-time garbage before trusting incoming lines.
     time.sleep(2.0)
     link.reset_input_buffer()
 
@@ -133,15 +132,15 @@ def main():
 
             files_touched = {}
 
-            for channel, raw_int in enumerate(raw_values):
+            for channel in range(min(connected, len(raw_values))):
 
-                target = mapping.get(str(channel))
+                target = channels.get(str(channel))
 
                 if target is None:
 
                     continue
 
-                raw = max(0.0, min(1.0, raw_int / 1023.0))
+                raw = max(0.0, min(1.0, raw_values[channel] / 1023.0))
 
                 previous = smoothed.get(channel, raw)
 

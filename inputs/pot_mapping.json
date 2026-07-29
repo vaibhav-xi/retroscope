@@ -1,0 +1,12 @@
+{
+    "connected_channels": 7,
+    "channels": {
+        "0": {"file": "modules/audioreactive/mode7/tuning.json", "key": "wave_hue", "min": 0.0, "max": 360.0},
+        "1": {"file": "modules/audioreactive/mode7/tuning.json", "key": "liss_hue", "min": 0.0, "max": 360.0},
+        "2": {"file": "modules/audioreactive/mode7/tuning.json", "key": "band_glow", "min": 0.5, "max": 3.0},
+        "3": {"file": "modules/audioreactive/mode8/tuning.json", "key": "wave_hue", "min": 0.0, "max": 360.0},
+        "4": {"file": "modules/audioreactive/mode8/tuning.json", "key": "vocal_hue", "min": 0.0, "max": 360.0},
+        "5": {"file": "modules/audioreactive/mode10/tuning.json", "key": "rose_hue", "min": 0.0, "max": 360.0},
+        "6": {"file": "modules/audioreactive/mode10/tuning.json", "key": "spin_speed", "min": 0.0, "max": 3.0}
+    }
+}

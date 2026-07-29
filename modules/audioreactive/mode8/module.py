@@ -18,6 +18,20 @@ from inputs.music_analysis import MusicAnalyzer
 
 from . import scope
 
+import json
+import pathlib
+import subprocess
+import sys
+
+from render.color import rotate_hue
+
+_STATE_FILE = pathlib.Path(__file__).parent / "tuning.json"
+
+_TUNING_DEFAULTS = {
+    "wave_hue": 0.0,
+    "vocal_hue": 0.0,
+}
+
 # _IS_DESKTOP = platform.system() == "Darwin"
 _IS_DESKTOP = True
 
@@ -29,7 +43,6 @@ _BEATS_SHOWN = 2
 _FALLBACK_WINDOW_SECONDS = 0.4
 
 _NOW_DOT_SIDES = 6
-
 
 def _normalize_color(color_255):
 
@@ -85,6 +98,9 @@ class AudioReactiveMode8(Module):
         self.wave_glow_renderable = None
         self.marker_renderable = None
         self.now_dot_renderable = None
+        
+        self._tuning = dict(_TUNING_DEFAULTS)
+        self._tuning_process = None
 
     # ---------------------------------------------------------
 
@@ -145,8 +161,36 @@ class AudioReactiveMode8(Module):
         )
 
         self._build_graticule(context)
+        
+        self._launch_tuning_panel()
 
     # ---------------------------------------------------------
+    
+    def _launch_tuning_panel(self):
+
+        panel_path = pathlib.Path(__file__).parent / "tuning_panel.py"
+
+        try:
+
+            self._tuning_process = subprocess.Popen(
+                [sys.executable, str(panel_path)]
+            )
+
+        except OSError as exc:
+
+            print(f"[Mode7] could not launch tuning panel ({exc}) - using defaults.")
+
+    def _poll_tuning(self):
+
+        try:
+
+            if _STATE_FILE.exists():
+
+                self._tuning.update(json.loads(_STATE_FILE.read_text()))
+
+        except (ValueError, OSError):
+
+            pass
 
     def _build_graticule(self, context):
 
@@ -215,6 +259,11 @@ class AudioReactiveMode8(Module):
     # ---------------------------------------------------------
 
     def emit(self, context, frame):
+        
+        self._poll_tuning()
+
+        wave_hue = self._tuning["wave_hue"]
+        vocal_hue = self._tuning["vocal_hue"]
 
         audio = self.audio
 
@@ -269,7 +318,10 @@ class AudioReactiveMode8(Module):
             self.vocal_renderable.add(Polyline(points=vocal_points))
 
         self.vocal_renderable.material = Material(
-            color=_lerp_color(self._dim, self._text, min(1.0, audio.vocal_presence * 1.3)),
+            color=rotate_hue(
+                _lerp_color(self._dim, self._text, min(1.0, audio.vocal_presence * 1.3)),
+                vocal_hue,
+            ),
             line_width=1.0 + audio.vocal_activity * 1.8 + self.vocal_flash * 1.5,
         )
 
@@ -286,12 +338,15 @@ class AudioReactiveMode8(Module):
             self.wave_glow_renderable.add(Polyline(points=wave_points))
 
         self.wave_renderable.material = Material(
-            color=_lerp_color(self._bright, self._accent, audio.tension * 0.6 + self.trigger_flash * 0.3),
+            color=rotate_hue(
+                _lerp_color(self._bright, self._accent, audio.tension * 0.6 + self.trigger_flash * 0.3),
+                wave_hue,
+            ),
             line_width=1.8 + self.trigger_flash * 1.2,
         )
 
         self.wave_glow_renderable.material = Material(
-            color=_lerp_color(self._dim, self._bright, 0.3),
+            color=rotate_hue(_lerp_color(self._dim, self._bright, 0.3), wave_hue),
             line_width=4.0 + self.kick_flash * 3.0,
         )
 

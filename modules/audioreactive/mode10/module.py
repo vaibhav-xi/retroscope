@@ -20,6 +20,20 @@ from .channel_analysis import ChannelAnalyzer, rose_curve, stereo_correlation
 
 import platform
 
+import json
+import pathlib
+import subprocess
+import sys
+
+from render.color import rotate_hue
+
+_STATE_FILE = pathlib.Path(__file__).parent / "tuning.json"
+
+_TUNING_DEFAULTS = {
+    "rose_hue": 0.0,
+    "spin_speed": 1.0,
+}
+
 _IS_WINDOWS = platform.system() == "Windows"
 
 # _IS_DESKTOP = platform.system() == "Darwin"
@@ -98,6 +112,9 @@ class AudioReactiveMode10(Module):
         self.left_rose_renderable = None
         self.right_rose_renderable = None
         self.combined_rose_renderable = None
+        
+        self._tuning = dict(_TUNING_DEFAULTS)
+        self._tuning_process = None
 
     # ---------------------------------------------------------
 
@@ -172,8 +189,36 @@ class AudioReactiveMode10(Module):
 
         self._compute_layout(context)
         self._build_graticule()
+        
+        self._launch_tuning_panel()
 
     # ---------------------------------------------------------
+    
+    def _launch_tuning_panel(self):
+
+        panel_path = pathlib.Path(__file__).parent / "tuning_panel.py"
+
+        try:
+
+            self._tuning_process = subprocess.Popen(
+                [sys.executable, str(panel_path)]
+            )
+
+        except OSError as exc:
+
+            print(f"[Mode7] could not launch tuning panel ({exc}) - using defaults.")
+
+    def _poll_tuning(self):
+
+        try:
+
+            if _STATE_FILE.exists():
+
+                self._tuning.update(json.loads(_STATE_FILE.read_text()))
+
+        except (ValueError, OSError):
+
+            pass
 
     def _compute_layout(self, context):
 
@@ -307,6 +352,10 @@ class AudioReactiveMode10(Module):
 
     def update(self, context):
 
+        self._poll_tuning()
+
+        spin_speed = self._tuning["spin_speed"]
+
         dt = context.delta_time
 
         audio = self.audio
@@ -318,8 +367,8 @@ class AudioReactiveMode10(Module):
 
         self.correlation = stereo_correlation(left, right)
 
-        self.phase_left += dt * (0.3 + self.left_analyzer.high * 1.6)
-        self.phase_right += dt * (0.3 + self.right_analyzer.high * 1.6)
+        self.phase_left += dt * (0.3 + self.left_analyzer.high * 1.6) * spin_speed
+        self.phase_right += dt * (0.3 + self.right_analyzer.high * 1.6) * spin_speed
 
     # ---------------------------------------------------------
 
@@ -445,7 +494,7 @@ class AudioReactiveMode10(Module):
         balance = right_a.level / total_level
 
         self.combined_rose_renderable.material = Material(
-            color=_lerp_color(self._left_color, self._right_color, balance),
+            color=rotate_hue(_lerp_color(self._left_color, self._right_color, balance), self._tuning["rose_hue"]),
             line_width=2.0 + (left_a.level + right_a.level) * 1.5,
         )
 

@@ -18,6 +18,21 @@ from inputs.music_analysis import MusicAnalyzer
 
 from . import scope
 
+import json
+import pathlib
+import subprocess
+import sys
+
+from render.color import rotate_hue
+
+_STATE_FILE = pathlib.Path(__file__).parent / "tuning.json"
+
+_TUNING_DEFAULTS = {
+    "wave_hue": 0.0,
+    "liss_hue": 0.0,
+    "band_glow": 1.0,
+}
+
 # _IS_DESKTOP = platform.system() == "Darwin"
 _IS_DESKTOP = True
 
@@ -91,6 +106,9 @@ class AudioReactiveMode7(Module):
         self.high_renderable = None
 
         self.marker_renderable = None
+        
+        self._tuning = dict(_TUNING_DEFAULTS)
+        self._tuning_process = None
 
     # ---------------------------------------------------------
 
@@ -161,8 +179,36 @@ class AudioReactiveMode7(Module):
         )
 
         self._build_graticule(context)
+        
+        self._launch_tuning_panel()
 
     # ---------------------------------------------------------
+    
+    def _launch_tuning_panel(self):
+
+        panel_path = pathlib.Path(__file__).parent / "tuning_panel.py"
+
+        try:
+
+            self._tuning_process = subprocess.Popen(
+                [sys.executable, str(panel_path)]
+            )
+
+        except OSError as exc:
+
+            print(f"[Mode7] could not launch tuning panel ({exc}) - using defaults.")
+
+    def _poll_tuning(self):
+
+        try:
+
+            if _STATE_FILE.exists():
+
+                self._tuning.update(json.loads(_STATE_FILE.read_text()))
+
+        except (ValueError, OSError):
+
+            pass
 
     def _compute_layout(self, context):
 
@@ -277,6 +323,12 @@ class AudioReactiveMode7(Module):
     # ---------------------------------------------------------
 
     def emit(self, context, frame):
+        
+        self._poll_tuning()
+
+        wave_hue = self._tuning["wave_hue"]
+        liss_hue = self._tuning["liss_hue"]
+        band_glow = self._tuning["band_glow"]
 
         audio = self.audio
 
@@ -316,12 +368,12 @@ class AudioReactiveMode7(Module):
             self.wave_glow_renderable.add(Polyline(points=points))
 
         self.wave_renderable.material = Material(
-            color=_lerp_color(self._bright, self._accent, self.trigger_flash * 0.5),
+            color=rotate_hue(_lerp_color(self._bright, self._accent, self.trigger_flash * 0.5), wave_hue),
             line_width=1.8 + self.trigger_flash * 1.2,
         )
 
         self.wave_glow_renderable.material = Material(
-            color=_lerp_color(self._dim, self._bright, 0.3),
+            color=rotate_hue(_lerp_color(self._dim, self._bright, 0.3), wave_hue),
             line_width=4.0 + self.kick_flash * 3.0,
         )
 
@@ -423,7 +475,7 @@ class AudioReactiveMode7(Module):
             self.liss_renderable.add(Polyline(points=liss_points))
 
         self.liss_renderable.material = Material(
-            color=_lerp_color(self._mid_c, self._accent, audio.tension),
+            color=rotate_hue(_lerp_color(self._mid_c, self._accent, audio.tension), liss_hue),
             line_width=1.4 + audio.consonance * 1.0,
         )
 
@@ -464,17 +516,17 @@ class AudioReactiveMode7(Module):
 
         self.low_renderable.material = Material(
             color=self._dim,
-            line_width=1.3 + audio.bass * 2.2 + self.kick_flash * 1.5,
+            line_width=1.3 + (audio.bass * 2.2 + self.kick_flash * 1.5) * band_glow,
         )
 
         self.mid_renderable.material = Material(
             color=self._mid_c,
-            line_width=1.3 + audio.mid * 2.2,
+            line_width=1.3 + (audio.mid * 2.2) * band_glow,
         )
 
         self.high_renderable.material = Material(
             color=self._bright,
-            line_width=1.3 + audio.high * 2.2 + self.snare_flash * 1.5,
+            line_width=1.3 + (audio.high * 2.2 + self.snare_flash * 1.5) * band_glow,
         )
 
         frame.add_renderable(self.grid_renderable, Layer.BACKGROUND)
@@ -491,5 +543,9 @@ class AudioReactiveMode7(Module):
     # ---------------------------------------------------------
 
     def shutdown(self):
+        
+        if self._tuning_process is not None:
+
+            self._tuning_process.terminate()
 
         self.audio.stop()
