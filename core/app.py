@@ -123,6 +123,8 @@ class App:
         # self.manager.register(
         #     AudioReactiveMode6()
         # )
+        
+        # knobs for modes 7, 8 and 10
 
         # self.manager.register(
         #     AudioReactiveMode7()
@@ -136,9 +138,9 @@ class App:
         #     AudioReactiveMode9()
         # )
 
-        # self.manager.register(
-        #     AudioReactiveMode10()
-        # )
+        self.manager.register(
+            AudioReactiveMode10()
+        )
         
         # self.manager.register(
         #     AudioReactiveMode11()
@@ -148,9 +150,9 @@ class App:
         #     AudioReactiveMode12()
         # )
         
-        self.manager.register(
-            AudioReactiveMode13()
-        )
+        # self.manager.register(
+        #     AudioReactiveMode13()
+        # )
 
         self.manager.initialize(
             self.context
